@@ -77,14 +77,7 @@ for i in adj_list:
 
 adj_list_dict_int = {int(key): adj_list_dict[key] for key in adj_list_dict}  # making the keys integer
 
-# Labeling the queues
-# counter = 1
-# for edge in label_edge_list:
-#     if edge[0] not in edge_list_dict:
-#         edge_list_dict[edge[0]] = {edge[1]: counter}
-#     else:
-#         edge_list_dict[edge[0]][edge[1]] = counter
-#     counter += 1
+
 
 for edge in label_edge_list:
     labels = int(DG_labeling.get_edge_data(edge[0], edge[1])['weight'])  # As label
@@ -107,25 +100,16 @@ g = qt.adjacency2graph(adj_list_dict_int, edge_type=edge_label_list_dict)
 dg = qt.QueueNetworkDiGraph(g)
 
 
-# flow rate (set up for each edge)
-# def rate(t):
-#    return 0.5
-
-
 # arrival rate only for the first
 def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
 
 
-# serving time in wards
-# def ser(t,value):
-#    return t + float(avg_serving_time[int(value)])
-
-
 # Setting up Queue Server for each edge.
 q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for value, label in
              edge_label_list_dict[key].items()}
-q_classes[0] = qt.NullQueue
+
+q_classes[0] = qt.NullQueue # Queue 0 indicates the link which terminates patients
 
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
@@ -134,19 +118,19 @@ q_args = {label: {
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
-q_args[1]['arrival_f'] = lambda t: t + arr(t)
+q_args[1]['arrival_f'] = lambda t: t + arr(t) # Queue 1 indicates the link which generates patients
 
-# Create the queue Network and initialize the simulation
+print(q_args)
 print(q_classes)
-net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
 
+net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
 net.start_collecting_data()
 net.set_transitions(edge_transition_list_dict)  # set transition dictionary for routing probability
 net.transitions(False)
 net.initialize(edge_type=1)
 net.simulate(t=8760)  # t 365*24=8760, and n=
 
-net.show_type(edge_type=0)
+net.show_type(edge_type=9)
 
 workbook = xlsxwriter.Workbook('data.xlsx')
 queue_sheet = workbook.add_worksheet('queue_info')
@@ -154,11 +138,10 @@ agent_sheet = workbook.add_worksheet('agent_info')
 
 row = 0
 column = 0
-queue_data = net.get_queue_data(edge_type=9)
-agent_data = net.get_agent_data(edge_type=9)
+queue_data = net.get_queue_data(queues=9)
+agent_data = net.get_agent_data(queues=9)
 
-
-for item1, item2 in zip(queue_data,agent_data):
+for item1, item2 in zip(queue_data, agent_data):
     if row == 0:
         queue_sheet.write(row, 0, 'The arrival time of an agent')
         queue_sheet.write(row, 1, 'The service start time of an agent')
@@ -177,9 +160,7 @@ for item1, item2 in zip(queue_data,agent_data):
         agent_sheet.write_row(row, column, item2)
     row += 1
 
-
 workbook.close()
-
 
 # pos = nx.spring_layout(dg.to_directed())
 # net.draw(pos=pos)

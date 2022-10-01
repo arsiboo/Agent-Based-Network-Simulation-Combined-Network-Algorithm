@@ -1,45 +1,45 @@
+import matplotlib
 import networkx as nx
 import queueing_tool as qt
 import xlrd
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from matplotlib import animation
+import xlsxwriter
+import math
 
-file = xlrd.open_workbook("mad_house.xlsx")  # access to the network file
+file = xlrd.open_workbook("mad_house.xlsx")  # access to the file
 wards_relations = file.sheet_by_name("Links")  # access to relationships of wards
 wards = file.sheet_by_name("Nodes")  # access to nodes attributes
+traffic_rates = file.sheet_by_name("Rate")
 
 # list of information for each node
 nodes_mapping_list = []
-wards_list = []
-total_beds = []
+beds_per_ward = []
 avg_serving_time = []
-patients_number = []
-wards_occupancy = []
-overflow = []
 wards_map_index = {}
 
 # list of information for each edge
 edge_types = []
 edge_map_index = {}
 
+# Traffic rate per hour for 24 hours
+rate_per_hour = []
+
 # Constructing Graph
-MG = nx.MultiDiGraph()
-DG = nx.DiGraph()
-DG_adj = nx.DiGraph()
+DG_labeling = nx.DiGraph()
 DG_probability = nx.DiGraph()
 
-# importing wards
+# importing wards Information
 for row in range(wards.nrows):
     if row > 0:
         _data = wards.row_slice(row)
-        wards_list.append(_data[0].value)
         nodes_mapping_list.append(_data[1].value)
-        total_beds.append(_data[2].value)
+        beds_per_ward.append(_data[2].value)
         avg_serving_time.append(_data[3].value)
-        patients_number.append(_data[4].value)
-        wards_occupancy.append(_data[5].value)
-        overflow.append(_data[6].value)
-        wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]
+        wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
 
 # importing wards relationships
 for row in range(wards_relations.nrows):
@@ -47,20 +47,26 @@ for row in range(wards_relations.nrows):
         _data = wards_relations.row_slice(row)
         _Node1 = wards_map_index[_data[0].value]
         _Node2 = wards_map_index[_data[1].value]
-        MG.add_weighted_edges_from(
-            [(int(_Node1), int(_Node2), float(_data[2].value)), (int(_Node1), int(_Node2), float(_data[3].value)),
-             (int(_Node1), int(_Node2), float(_data[4].value)), (int(_Node1), int(_Node2), float(_data[5].value))])
-        DG.add_weighted_edges_from([(int(_Node1), int(_Node2), float(_data[2].value))])
-        DG_probability.add_weighted_edges_from([(int(_Node1), int(_Node2), float(_data[3].value))])
+        DG_labeling.add_weighted_edges_from([(int(_Node1), int(_Node2), float(_data[2].value))])  # Labels for edges
+        DG_probability.add_weighted_edges_from(
+            [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
 
-# Generating adjacency list and edge list, and convert it to dictionary
-adj_list = nx.generate_adjlist(DG)
-edge_list = list(DG.edges)
+# Importing traffic flow rate per hour
+for row in range(traffic_rates.nrows):
+    if row > 0:
+        _data = traffic_rates.row_slice(row)
+        rate_per_hour.append(_data[1].value)
+
+# Generating adjacency list, and convert it to dictionary
+adj_list = nx.generate_adjlist(DG_labeling)
+
+label_edge_list = list(DG_labeling.edges)
 prob_edge_list = list(DG_probability.edges)
 adj_list_dict = {}
-edge_list_dict = {}
+edge_label_list_dict = {}
 edge_transition_list_dict = {}
 
+# Network Adjacency edges only used for creating the network for simulation
 for i in adj_list:
     i_splitted = i.split(' ')
     for j in range(1, len(i_splitted)):
@@ -69,38 +75,46 @@ for i in adj_list:
         else:
             adj_list_dict[i[0]].append(int(i_splitted[j]))
 
-adj_list_dict_int = {int(key): adj_list_dict[key] for key in adj_list_dict}
+adj_list_dict_int = {int(key): adj_list_dict[key] for key in adj_list_dict}  # making the keys integer
 
 # Labeling the queues
-counter = 1
-for edge in edge_list:
-    if edge[0] not in edge_list_dict:
-        edge_list_dict[edge[0]] = {edge[1]: counter}
+# counter = 1
+# for edge in label_edge_list:
+#     if edge[0] not in edge_list_dict:
+#         edge_list_dict[edge[0]] = {edge[1]: counter}
+#     else:
+#         edge_list_dict[edge[0]][edge[1]] = counter
+#     counter += 1
+
+for edge in label_edge_list:
+    labels = int(DG_labeling.get_edge_data(edge[0], edge[1])['weight'])  # As label
+    if edge[0] not in edge_label_list_dict:
+        edge_label_list_dict[edge[0]] = {edge[1]: labels}
     else:
-        edge_list_dict[edge[0]][edge[1]] = counter
-    counter += 1
+        edge_label_list_dict[edge[0]][edge[1]] = labels
 
 # Defining routing probability
 for edge in prob_edge_list:
-    d = DG_probability.get_edge_data(edge[0], edge[1])['weight']
-
+    probabilities = DG_probability.get_edge_data(edge[0], edge[1])['weight']  # As probability
     if edge[0] not in edge_transition_list_dict:
-        edge_transition_list_dict[edge[0]] = {edge[1]: d}
+        edge_transition_list_dict[edge[0]] = {edge[1]: probabilities}
     else:
-        edge_transition_list_dict[edge[0]][edge[1]] = d
+        edge_transition_list_dict[edge[0]][edge[1]] = probabilities
 
 # preparing the graph for simulation
-g = qt.adjacency2graph(adj_list_dict_int, edge_type=edge_list_dict)
+
+g = qt.adjacency2graph(adj_list_dict_int, edge_type=edge_label_list_dict)
+dg = qt.QueueNetworkDiGraph(g)
 
 
 # flow rate (set up for each edge)
-def rate(t):
-    return 0.5
+# def rate(t):
+#    return 0.5
 
 
 # arrival rate only for the first
 def arr(t):
-    return qt.poisson_random_measure(t, rate, 0.5)
+    return rate_per_hour[math.floor(round(t, 2)) % 24]
 
 
 # serving time in wards
@@ -109,30 +123,68 @@ def arr(t):
 
 
 # Setting up Queue Server for each edge.
-q_classes = {label: qt.QueueServer for key in edge_list_dict.keys() for value, label in edge_list_dict[key].items()}
+q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for value, label in
+             edge_label_list_dict[key].items()}
+q_classes[0] = qt.NullQueue
 
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
-    'num_servers': int(total_beds[int(value)]),  # number of beds
+    'num_servers': int(beds_per_ward[int(value)]),  # number of beds
+    'collect_data': True,
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
-} for key in edge_list_dict.keys() for value, label in edge_list_dict[key].items()}
+} for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
-q_args[1]['arrival_f'] = arr
+q_args[1]['arrival_f'] = lambda t: t + arr(t)
 
 # Create the queue Network and initialize the simulation
-net = qt.QueueNetwork(g=g, q_classes=q_classes, q_args=q_args, max_agents=10000)
+print(q_classes)
+net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
+
 net.start_collecting_data()
 net.set_transitions(edge_transition_list_dict)  # set transition dictionary for routing probability
 net.transitions(False)
 net.initialize(edge_type=1)
-net.simulate(t=1000)
-#net.draw(fname="state.png")
-# net.draw(fname="state.png", scatter_kwargs={'s': 40})
+net.simulate(t=8760)  # t 365*24=8760, and n=
+
+net.show_type(edge_type=0)
+
+workbook = xlsxwriter.Workbook('data.xlsx')
+queue_sheet = workbook.add_worksheet('queue_info')
+agent_sheet = workbook.add_worksheet('agent_info')
+
+row = 0
+column = 0
+queue_data = net.get_queue_data(edge_type=9)
+agent_data = net.get_agent_data(edge_type=9)
 
 
-# Get the simulation data
-# agent_data_out = net.get_agent_data()
-# print(agent_data_out)
+for item1, item2 in zip(queue_data,agent_data):
+    if row == 0:
+        queue_sheet.write(row, 0, 'The arrival time of an agent')
+        queue_sheet.write(row, 1, 'The service start time of an agent')
+        queue_sheet.write(row, 2, 'The departure time of an agent')
+        queue_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
+        queue_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
+        queue_sheet.write(row, 5, 'The QueueServer edge index')
+        agent_sheet.write(row, 0, 'The arrival time of an agent')
+        agent_sheet.write(row, 1, 'The service start time of an agent')
+        agent_sheet.write(row, 2, 'The departure time of an agent')
+        agent_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
+        agent_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
+        agent_sheet.write(row, 5, 'The QueueServer edge index')
+    else:
+        queue_sheet.write_row(row, column, item1)
+        agent_sheet.write_row(row, column, item2)
+    row += 1
 
-# queue_data_out = net.get_queue_data()
-# print(queue_data_out)
+
+workbook.close()
+
+
+# pos = nx.spring_layout(dg.to_directed())
+# net.draw(pos=pos)
+
+# anim = net.animate()
+
+
+# if the ward is full keep the patient in the previous ward, or keep them in ED. or in  corridor.

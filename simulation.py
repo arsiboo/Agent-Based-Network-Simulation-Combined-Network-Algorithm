@@ -1,12 +1,6 @@
-import matplotlib
 import networkx as nx
 import queueing_tool as qt
 import xlrd
-import numpy as np
-import random
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-from matplotlib import animation
 import xlsxwriter
 import math
 

@@ -24,6 +24,7 @@ nodes_mapping_list = []
 beds_per_ward = []
 avg_serving_time = []
 wards_map_index = {}
+wards_map_ward = {}
 
 # list of information for each edge
 edge_types = []
@@ -44,6 +45,12 @@ for row in range(wards.nrows):
         beds_per_ward.append(_data[2].value)
         avg_serving_time.append(_data[3].value)
         wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
+        wards_map_ward[nodes_mapping_list[int(_data[1].value)]] = _data[0].value  # Mapping Nodes to Index.
+
+print("wards mapping index")
+print(wards_map_index)
+print("nodes mapping list")
+print(nodes_mapping_list)
 
 # importing wards relationships
 for row in range(wards_relations.nrows):
@@ -108,7 +115,6 @@ dg = qt.QueueNetworkDiGraph(g)
 q_classes = {label: qt.QueueServer for key in edge_label_list_dict.keys() for value, label in
              edge_label_list_dict[key].items()}
 
-
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
 
 # defining number of servers, arrival rate and the service time for each edge.
@@ -143,8 +149,12 @@ queue_sheet.write(row, 2, 'The departure time of an agent')
 queue_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
 queue_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
 queue_sheet.write(row, 5, 'The QueueServer edge index')
-queue_sheet.write(row, 6, 'edge label')
-queue_sheet.write(row, 7, 'edge distribution')
+queue_sheet.write(row, 6, 'Edge label')
+queue_sheet.write(row, 7, 'connecting nodes')
+queue_sheet.write(row, 8, 'Edge distribution')
+queue_sheet.write(row, 9, 'Overflow?')
+queue_sheet.write(row, 10, 'Occupancy Percentage')
+
 agent_sheet.write(row, 0, 'The arrival time of an agent')
 agent_sheet.write(row, 1, 'The service start time of an agent')
 agent_sheet.write(row, 2, 'The departure time of an agent')
@@ -152,7 +162,7 @@ agent_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
 agent_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
 agent_sheet.write(row, 5, 'The QueueServer edge index')
 agent_sheet.write(row, 6, 'edge label')
-agent_sheet.write(row, 7, 'edge distribution')
+
 row += 1
 
 for source in DG_labeling.nodes():
@@ -162,12 +172,15 @@ for source in DG_labeling.nodes():
                 queue_data = net.get_queue_data(edge=(source, target))
                 agent_data = net.get_agent_data(edge=(source, target))
                 for item1, item2 in zip(queue_data, agent_data):
-                    queue_sheet.write_row(row, 0, item1)
-                    queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])
-                    queue_sheet.write(row, 7, DG_probability[source][target]['weight'])
-                    agent_sheet.write_row(row, 0, item2)
-                    agent_sheet.write(row, 6, DG_labeling[source][target]['weight'])
-                    agent_sheet.write(row, 7, DG_probability[source][target]['weight'])
+                    queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
+                    queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])  # edge label
+                    queue_sheet.write(row, 7,
+                                      wards_map_ward[source] + " -> " + wards_map_ward[target])  # connecting wards
+                    queue_sheet.write(row, 8,
+                                      DG_probability[source][target]['weight'])  # edge flow distribution probability
+                    queue_sheet.write(row, 8, "under construction")  # Whether there is a overflow or not and by how much
+                    queue_sheet.write(row, 8, "under construction")  # Occupancy Percentage
+                    agent_sheet.write_row(row, 0, item2)  # Agent general information
                     row += 1
 workbook.close()
 

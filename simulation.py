@@ -103,8 +103,6 @@ for edge in prob_edge_list:
     else:
         edge_transition_list_dict[edge[0]][edge[1]] = probabilities
 
-print(wards_map_index)
-print(edge_label_list_dict)
 
 # preparing the graph for simulation
 
@@ -152,8 +150,9 @@ queue_sheet.write(row, 5, 'The QueueServer edge index')
 queue_sheet.write(row, 6, 'Edge label')
 queue_sheet.write(row, 7, 'connecting nodes')
 queue_sheet.write(row, 8, 'Edge distribution')
-queue_sheet.write(row, 9, 'Overflow?')
-queue_sheet.write(row, 10, 'Occupancy Percentage')
+queue_sheet.write(row, 9, 'Server Capacity')
+queue_sheet.write(row, 10, 'Overflow?')
+queue_sheet.write(row, 11, 'Occupancy Percentage')
 
 agent_sheet.write(row, 0, 'The arrival time of an agent')
 agent_sheet.write(row, 1, 'The service start time of an agent')
@@ -174,12 +173,11 @@ for source in DG_labeling.nodes():
                 for item1, item2 in zip(queue_data, agent_data):
                     queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
                     queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])  # edge label
-                    queue_sheet.write(row, 7,
-                                      wards_map_ward[source] + " -> " + wards_map_ward[target])  # connecting wards
-                    queue_sheet.write(row, 8,
-                                      DG_probability[source][target]['weight'])  # edge flow distribution probability
-                    queue_sheet.write(row, 8, "under construction")  # Whether there is a overflow or not and by how much
-                    queue_sheet.write(row, 8, "under construction")  # Occupancy Percentage
+                    queue_sheet.write(row, 7, wards_map_ward[source] + " -> " + wards_map_ward[target])  # connecting wards
+                    queue_sheet.write(row, 8, DG_probability[source][target]['weight'])  # edge flow distribution probability
+                    queue_sheet.write(row, 9, beds_per_ward[target]) #Server capacity
+                    queue_sheet.write(row, 10, 0)  # Whether there is an overflow or not and by how much
+                    queue_sheet.write(row, 11, 0)  # Occupancy Percentage
                     agent_sheet.write_row(row, 0, item2)  # Agent general information
                     row += 1
 workbook.close()

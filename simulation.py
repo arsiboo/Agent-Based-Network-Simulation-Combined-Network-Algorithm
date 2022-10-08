@@ -5,6 +5,33 @@ import xlsxwriter
 import math
 
 
+class SharedQueueServer(qt.QueueServer):
+    def __init__(self, shared_server_state, **kwargs):
+        super().__init__(**kwargs)
+        self.shared_server_state = shared_server_state
+        self.total_num_servers = kwargs.get("num_servers", 1)
+
+    @property
+    def num_servers(self):
+        return self.total_num_servers - self.shared_server_state[0]
+
+    @num_servers.setter
+    def num_servers(self, value):
+        self.total_num_servers = value
+
+    def next_event(self):
+        next_event_type = self.next_event_description()
+        # Event type 2 is a departure
+        if next_event_type == 2:
+            self.shared_server_state[0] += 1
+            super().next_event(self)
+
+        # Event type 1 is an arrival
+        elif next_event_type == 1:
+            self.shared_server_state[0] -= 1
+            super().next_event(self)
+
+
 # arrival rate only for the first
 def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
@@ -103,22 +130,24 @@ for edge in prob_edge_list:
     else:
         edge_transition_list_dict[edge[0]][edge[1]] = probabilities
 
-
 # preparing the graph for simulation
 
 g = qt.adjacency2graph(adj_list_dict_int, edge_type=edge_label_list_dict)
 dg = qt.QueueNetworkDiGraph(g)
 
 # Setting up Queue Server for each edge.
-q_classes = {label: qt.QueueServer for key in edge_label_list_dict.keys() for value, label in
+q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for value, label in
              edge_label_list_dict[key].items()}
 
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
 
+shared_state = [0]
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
     'num_servers': int(beds_per_ward[int(value)]),  # number of beds
     'collect_data': True,
+    'qbuffer': 0,
+    #    'shared_server_state': 1,
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
@@ -139,7 +168,6 @@ net.simulate(t=8760)  # t 365*24=8760, and n=
 row = 0
 workbook = xlsxwriter.Workbook('data.xlsx')
 queue_sheet = workbook.add_worksheet('queue_info')
-agent_sheet = workbook.add_worksheet('agent_info')
 
 queue_sheet.write(row, 0, 'The arrival time of an agent')
 queue_sheet.write(row, 1, 'The service start time of an agent')
@@ -147,20 +175,14 @@ queue_sheet.write(row, 2, 'The departure time of an agent')
 queue_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
 queue_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
 queue_sheet.write(row, 5, 'The QueueServer edge index')
-queue_sheet.write(row, 6, 'Edge label')
-queue_sheet.write(row, 7, 'connecting nodes')
-queue_sheet.write(row, 8, 'Edge distribution')
-queue_sheet.write(row, 9, 'Server Capacity')
-queue_sheet.write(row, 10, 'Overflow?')
-queue_sheet.write(row, 11, 'Occupancy Percentage')
-
-agent_sheet.write(row, 0, 'The arrival time of an agent')
-agent_sheet.write(row, 1, 'The service start time of an agent')
-agent_sheet.write(row, 2, 'The departure time of an agent')
-agent_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
-agent_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
-agent_sheet.write(row, 5, 'The QueueServer edge index')
-agent_sheet.write(row, 6, 'edge label')
+queue_sheet.write(row, 6, 'simulation Time')
+queue_sheet.write(row, 7, 'Edge label')
+queue_sheet.write(row, 8, 'source')
+queue_sheet.write(row, 9, 'target')
+queue_sheet.write(row, 10, 'Edge distribution')
+queue_sheet.write(row, 11, 'Server Capacity')
+queue_sheet.write(row, 12, 'Overflow?')
+queue_sheet.write(row, 13, 'Occupancy Percentage')
 
 row += 1
 
@@ -170,18 +192,21 @@ for source in DG_labeling.nodes():
             if DG_labeling.has_edge(source, target):
                 queue_data = net.get_queue_data(edge=(source, target))
                 agent_data = net.get_agent_data(edge=(source, target))
-                for item1, item2 in zip(queue_data, agent_data):
+                for item1 in queue_data:
                     queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
-                    queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])  # edge label
-                    queue_sheet.write(row, 7, wards_map_ward[source] + " -> " + wards_map_ward[target])  # connecting wards
-                    queue_sheet.write(row, 8, DG_probability[source][target]['weight'])  # edge flow distribution probability
-                    queue_sheet.write(row, 9, beds_per_ward[target]) #Server capacity
-                    queue_sheet.write(row, 10, 0)  # Whether there is an overflow or not and by how much
-                    queue_sheet.write(row, 11, 0)  # Occupancy Percentage
-                    agent_sheet.write_row(row, 0, item2)  # Agent general information
+                    queue_sheet.write(row, 6, "t")
+                    queue_sheet.write(row, 7, DG_labeling[source][target]['weight'])  # Edge label
+                    queue_sheet.write(row, 8, wards_map_ward[source])  # Source
+                    queue_sheet.write(row, 9, wards_map_ward[target])  # Target
+                    queue_sheet.write(row, 10,
+                                      DG_probability[source][target]['weight'])  # Edge flow distribution probability
+                    queue_sheet.write(row, 11, beds_per_ward[target])  # Server capacity
+                    queue_sheet.write(row, 12, 0)  # Whether there is an overflow or not and by how much
+                    queue_sheet.write(row, 13, 0)  # Occupancy Percentage
                     row += 1
 workbook.close()
 
+print()
 # pos = nx.spring_layout(dg.to_directed())
 # net.draw(pos=pos)
 

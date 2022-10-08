@@ -146,7 +146,7 @@ shared_state = [0]
 q_args = {label: {
     'num_servers': int(beds_per_ward[int(value)]),  # number of beds
     'collect_data': True,
-    'qbuffer': 0,
+    'qbuffer': 10, # Limiting queue size so that they won't go to other wards,
     #    'shared_server_state': 1,
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
@@ -180,7 +180,7 @@ queue_sheet.write(row, 7, 'Edge label')
 queue_sheet.write(row, 8, 'source')
 queue_sheet.write(row, 9, 'target')
 queue_sheet.write(row, 10, 'Edge distribution')
-queue_sheet.write(row, 11, 'Server Capacity')
+queue_sheet.write(row, 11, 'Server Max Capacity')
 queue_sheet.write(row, 12, 'Overflow?')
 queue_sheet.write(row, 13, 'Occupancy Percentage')
 
@@ -193,16 +193,19 @@ for source in DG_labeling.nodes():
                 queue_data = net.get_queue_data(edge=(source, target))
                 agent_data = net.get_agent_data(edge=(source, target))
                 for item1 in queue_data:
+                    if item1[4] != 0:
+                        v = beds_per_ward[target] / item1[4] * 100
+                    else:
+                        v = float("inf")
                     queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
                     queue_sheet.write(row, 6, "t")
                     queue_sheet.write(row, 7, DG_labeling[source][target]['weight'])  # Edge label
                     queue_sheet.write(row, 8, wards_map_ward[source])  # Source
                     queue_sheet.write(row, 9, wards_map_ward[target])  # Target
-                    queue_sheet.write(row, 10,
-                                      DG_probability[source][target]['weight'])  # Edge flow distribution probability
-                    queue_sheet.write(row, 11, beds_per_ward[target])  # Server capacity
-                    queue_sheet.write(row, 12, 0)  # Whether there is an overflow or not and by how much
-                    queue_sheet.write(row, 13, 0)  # Occupancy Percentage
+                    queue_sheet.write(row, 10, DG_probability[source][target]['weight'])  # Edge flow distribution probability
+                    queue_sheet.write(row, 11, beds_per_ward[target])  # Server max capacity
+                    queue_sheet.write(row, 12, beds_per_ward[target]-item1[4])  # Whether there is an overflow or not and by how much
+                    queue_sheet.write(row, 13, v if not math.isinf(v) else "inf")  # Occupancy Percentage
                     row += 1
 workbook.close()
 

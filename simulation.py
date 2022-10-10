@@ -6,7 +6,7 @@ import math
 
 
 class SharedQueueServer(qt.QueueServer):
-    def __init__(self, shared_server_state, **kwargs):
+    def __init__(self, shared_server_state: 0, **kwargs):
         super().__init__(**kwargs)
         self.shared_server_state = shared_server_state
         self.total_num_servers = kwargs.get("num_servers", 1)
@@ -23,13 +23,15 @@ class SharedQueueServer(qt.QueueServer):
         next_event_type = self.next_event_description()
         # Event type 2 is a departure
         if next_event_type == 2:
-            self.shared_server_state[0] += 1
-            super().next_event(self)
+            self.shared_server_state[0] -= 1
+            return super().next_event()
 
         # Event type 1 is an arrival
         elif next_event_type == 1:
-            self.shared_server_state[0] -= 1
-            super().next_event(self)
+            # We only use a server if there is capacity.
+            if self.num_system - len(self.queue) < self.num_servers:
+                self.shared_server_state[0] += 1
+            super().next_event()
 
 
 # arrival rate only for the first
@@ -139,22 +141,26 @@ dg = qt.QueueNetworkDiGraph(g)
 q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for value, label in
              edge_label_list_dict[key].items()}
 
+# q_classes = {label: SharedQueueServer for key in edge_label_list_dict.keys() for value, label in
+#             edge_label_list_dict[key].items()}
+
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
+q_classes[1] = qt.QueueServer
 
 shared_state = [0]
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
     'num_servers': int(beds_per_ward[int(value)]),  # number of beds
     'collect_data': True,
-    'qbuffer': 10, # Limiting queue size so that they won't go to other wards,
-    #    'shared_server_state': 1,
+    'qbuffer': 0,  # Limiting queue size so that they won't go to other wards,
+    # 'shared_server_state': shared_state,
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
 
-print(q_args)
 print(q_classes)
+print(q_args)
 
 net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
 net.start_collecting_data()
@@ -193,19 +199,21 @@ for source in DG_labeling.nodes():
                 queue_data = net.get_queue_data(edge=(source, target))
                 agent_data = net.get_agent_data(edge=(source, target))
                 for item1 in queue_data:
-                    if item1[4] != 0:
-                        v = beds_per_ward[target] / item1[4] * 100
-                    else:
-                        v = float("inf")
                     queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
                     queue_sheet.write(row, 6, "t")
                     queue_sheet.write(row, 7, DG_labeling[source][target]['weight'])  # Edge label
                     queue_sheet.write(row, 8, wards_map_ward[source])  # Source
                     queue_sheet.write(row, 9, wards_map_ward[target])  # Target
-                    queue_sheet.write(row, 10, DG_probability[source][target]['weight'])  # Edge flow distribution probability
+                    queue_sheet.write(row, 10,
+                                      DG_probability[source][target]['weight'])  # Edge flow distribution probability
                     queue_sheet.write(row, 11, beds_per_ward[target])  # Server max capacity
-                    queue_sheet.write(row, 12, beds_per_ward[target]-item1[4])  # Whether there is an overflow or not and by how much
-                    queue_sheet.write(row, 13, v if not math.isinf(v) else "inf")  # Occupancy Percentage
+                    queue_sheet.write(row, 12, beds_per_ward[target] - item1[
+                        4])  # Whether there is an overflow or not and by how much
+                    if item1[4] != 0:
+                        perc = 100 * (item1[4]/beds_per_ward[target])
+                    else:
+                        perc = float("inf")
+                    queue_sheet.write(row, 13, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
                     row += 1
 workbook.close()
 

@@ -3,6 +3,8 @@
 # Residual_Capacity = (Total_number_of_beds/incoming_edge_transition) - current_people_in_queue
 import math
 import random
+from typing import List, Any
+
 import networkx as nx
 import xlrd
 from networkx.algorithms.flow import edmonds_karp, shortest_augmenting_path, preflow_push, dinitz, boykov_kolmogorov, \
@@ -22,7 +24,7 @@ times = []
 node_max_capacity = []
 edge_current_patients = []
 edge_transition = []
-edge_label_output = []
+edge_label_output: List[Any] = []
 
 output_size = len(times)
 
@@ -33,8 +35,8 @@ for row in range(output.nrows):
         times.append(_data[0].value)
         edge_current_patients.append(_data[4].value)
         edge_label_output.append(_data[6].value)
-        edge_transition.append(_data[8].value)
-        node_max_capacity.append(_data[9].value)
+        edge_transition.append(_data[9].value)
+        node_max_capacity.append(_data[10].value)
 
 # Importing edges and their labels and initializing capacity.
 for row in range(hospital.nrows):
@@ -49,43 +51,44 @@ for row in range(hospital.nrows):
             ]
         )
 
-# print(G_flow.edges(data=True))
-
-#for _label, patients, transition, capacity in zip(edge_label_output[:5], edge_current_patients[:5], edge_transition[:5],
-#                                                  node_max_capacity[:5]):
-#    for u, v, net in G_flow.edges(data=True):
-#        if G_flow['label_input'] == _label:
-#            net['residual_capacity'] = int(capacity / edge_transition) - patients
-
 mean_arr = []
+res_arr = []
 max_time = int(math.ceil(max(times)))
+# max_label = int(math.ceil(max(edge_label_output)))
 j = 0
-for i in range(1, max_time+1):
-    current_mean = 0
-    counter = 0
+for i in range(1, max_time + 1):
+    mean_arr.append({})
+    res_arr.append({})
+    counter = {}
     while j < len(times) and times[j] < i:
-        current_mean += edge_current_patients[j]
+        if edge_label_output[j] not in mean_arr[i - 1].keys():
+            mean_arr[i - 1][edge_label_output[j]] = 0
+            res_arr[i - 1][edge_label_output[j]] = 0
+            counter[edge_label_output[j]] = 0
+        mean_arr[i - 1][edge_label_output[j]] = \
+            (mean_arr[i - 1][edge_label_output[j]] * counter[edge_label_output[j]] + edge_current_patients[j]) / \
+            (counter[edge_label_output[j]] + 1)
+        res_arr[i - 1][edge_label_output[j]] = (node_max_capacity[j] / edge_transition[j]) - mean_arr[i - 1][
+            edge_label_output[j]]
+        counter[edge_label_output[j]] += 1
         j += 1
-        counter += 1
-    current_mean /= counter
-    mean_arr.append(current_mean)
 
+for item in res_arr:
+    for label, res_cap in item.items():
+        for u, v, net in G_flow.edges(data=True):
+            if net['label_input'] == label:
+                net['residual_capacity'] = res_cap
+        print("calculating residual graphs using Preflow push algorithm:")
+        RG = build_residual_network(G_flow, capacity="residual_capacity")
+        pp = preflow_push(G_flow, "ward_1", "ward_7", capacity="residual_capacity",residual=RG)  # Complexity O(sqr(V)sqrt(E)) //Best since Orlin is unavailable.
+        print(pp.edges.data())
+        print(nx.to_numpy_matrix(pp, weight="flow"))
+        print("Structural Hole weak ties:")
+        const = nx.constraint(G_flow, weight="residual_capacity")  # Less constraint indicates more structural holes in a network
+        print(const)
+        print(min(const, key=const.get))
+        print("-----------------------------------------")
 
-#for u, v, net in G_flow.edges(data=True):
-    # net['residual_capacity'] = (Total_number_of_beds/incoming_edge_transition) - current_patient
-
-#    net['residual_capacity'] = random.randint(1, 10)
-#print("calculating different residual graphs for flow:")
-#RG = build_residual_network(G_flow, capacity="residual_capacity")
-#pp = preflow_push(G_flow, "ward_1", "ward_7", capacity="residual_capacity",
-#                  residual=RG)  # Complexity O(sqr(V)sqrt(E)) //Best since Orlin is unavailable.
-# print(pp.edges.data())
-#print(nx.to_numpy_matrix(pp, weight="flow"))
-#print("Structural Hole weak ties:")
-#const = nx.constraint(G_flow,
-#                      weight="residual_capacity")  # Less constraint indicates more structural holes in a network
-#print(const)
-#print(min(const, key=const.get))
 
 # for _node in G_flow.nodes.data():
 # edge_weights = nx.get_edge_attributes(RG,"capacity")

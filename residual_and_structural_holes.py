@@ -2,13 +2,10 @@
 # Residual_Capacity = Original_Capacity - current_flow
 # Residual_Capacity = (Total_number_of_beds/incoming_edge_transition) - current_people_in_queue
 import math
-import random
 from typing import List, Any
-
 import networkx as nx
 import xlrd
-from networkx.algorithms.flow import edmonds_karp, shortest_augmenting_path, preflow_push, dinitz, boykov_kolmogorov, \
-    build_residual_network
+from networkx.algorithms.flow import preflow_push
 
 file = xlrd.open_workbook("mad_house.xlsx")
 data = xlrd.open_workbook("data.xlsx")

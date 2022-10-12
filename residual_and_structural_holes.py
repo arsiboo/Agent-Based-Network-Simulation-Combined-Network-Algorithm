@@ -70,22 +70,27 @@ for i in range(1, max_time + 1):
         counter[edge_label_output[j]] += 1
         j += 1
 
+
+k=1
 for item in res_arr:
     for label, res_cap in item.items():
         for u, v, net in G_flow.edges(data=True):
             if net['label_input'] == label:
                 net['residual_capacity'] = res_cap
-        print("calculating residual graphs using Preflow push algorithm:")
-        RG = build_residual_network(G_flow, capacity="residual_capacity")
-        pp = preflow_push(G_flow, "ward_1", "ward_7", capacity="residual_capacity",residual=RG)  # Complexity O(sqr(V)sqrt(E)) //Best since Orlin is unavailable.
-        print(pp.edges.data())
-        print(nx.to_numpy_matrix(pp, weight="flow"))
-        print("Calculation structural Hole weak ties:")
-        const = nx.constraint(G_flow, weight="residual_capacity")  # Less constraint indicates more structural holes in a network
-        print(const)
-        print(min(const, key=const.get))
-        print("-----------------------------------------")
-
+            print("calculating residual graphs using Preflow push algorithm:")
+            RG = build_residual_network(G_flow, capacity="residual_capacity")
+            pp = preflow_push(G_flow, "ward_1", "ward_7", capacity="residual_capacity",residual=RG)  # Complexity O(sqr(V)sqrt(E)) //Best since Orlin is unavailable.
+            print(nx.to_numpy_matrix(pp, weight="flow"))
+            print("Calculation structural Hole weak ties:")
+            const = nx.constraint(G_flow, weight="residual_capacity")  # The higher the score on the constraint measure
+            # "const", the more structural opportunities are constrained and, as a result, the lower the network
+            # benefits.
+            print(const)
+            print(dict(reversed(sorted(const.items(), key=lambda it: it[1]))))
+            print(max(const, key=const.get))
+            print("-----------------------------------------")
+            print(k)
+            k+=1
 
 # for _node in G_flow.nodes.data():
 # edge_weights = nx.get_edge_attributes(RG,"capacity")

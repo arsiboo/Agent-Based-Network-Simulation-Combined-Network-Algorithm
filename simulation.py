@@ -145,14 +145,14 @@ q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for valu
 #             edge_label_list_dict[key].items()}
 
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
-q_classes[1] = qt.QueueServer
+q_classes[1] = qt.QueueServer # The first server has unlimited queue and is type of QueueServer
 
 shared_state = [0]
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
     'num_servers': int(beds_per_ward[int(value)]),  # number of beds
     'collect_data': True,
-    'qbuffer': 0,  # Limiting queue size so that they won't go to other wards,
+    'qbuffer': 10,  # Limiting queue size so that they won't go to other wards,
     # 'shared_server_state': shared_state,
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
@@ -181,14 +181,13 @@ queue_sheet.write(row, 2, 'The departure time of an agent')
 queue_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
 queue_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
 queue_sheet.write(row, 5, 'The QueueServer edge index')
-queue_sheet.write(row, 6, 'simulation Time')
-queue_sheet.write(row, 7, 'Edge label')
-queue_sheet.write(row, 8, 'source')
-queue_sheet.write(row, 9, 'target')
-queue_sheet.write(row, 10, 'Edge distribution')
-queue_sheet.write(row, 11, 'Server Max Capacity')
-queue_sheet.write(row, 12, 'Overflow?')
-queue_sheet.write(row, 13, 'Occupancy Percentage')
+queue_sheet.write(row, 6, 'Edge label')
+queue_sheet.write(row, 7, 'source')
+queue_sheet.write(row, 8, 'target')
+queue_sheet.write(row, 9, 'Edge distribution')
+queue_sheet.write(row, 10, 'Server Max Capacity')
+queue_sheet.write(row, 11, 'Overflow?')
+queue_sheet.write(row, 12, 'Occupancy Percentage')
 
 row += 1
 
@@ -200,24 +199,22 @@ for source in DG_labeling.nodes():
                 agent_data = net.get_agent_data(edge=(source, target))
                 for item1 in queue_data:
                     queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
-                    queue_sheet.write(row, 6, "t")
-                    queue_sheet.write(row, 7, DG_labeling[source][target]['weight'])  # Edge label
-                    queue_sheet.write(row, 8, wards_map_ward[source])  # Source
-                    queue_sheet.write(row, 9, wards_map_ward[target])  # Target
-                    queue_sheet.write(row, 10,
+                    queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])  # Edge label
+                    queue_sheet.write(row, 7, wards_map_ward[source])  # Source
+                    queue_sheet.write(row, 8, wards_map_ward[target])  # Target
+                    queue_sheet.write(row, 9,
                                       DG_probability[source][target]['weight'])  # Edge flow distribution probability
-                    queue_sheet.write(row, 11, beds_per_ward[target])  # Server max capacity
-                    queue_sheet.write(row, 12, beds_per_ward[target] - item1[
+                    queue_sheet.write(row, 10, beds_per_ward[target])  # Server max capacity
+                    queue_sheet.write(row, 11, beds_per_ward[target] - item1[
                         4])  # Whether there is an overflow or not and by how much
                     if item1[4] != 0:
                         perc = 100 * (item1[4]/beds_per_ward[target])
                     else:
                         perc = float("inf")
-                    queue_sheet.write(row, 13, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
+                    queue_sheet.write(row, 12, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
                     row += 1
 workbook.close()
 
-print()
 # pos = nx.spring_layout(dg.to_directed())
 # net.draw(pos=pos)
 

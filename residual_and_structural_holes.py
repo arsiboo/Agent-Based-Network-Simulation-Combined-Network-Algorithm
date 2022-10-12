@@ -5,7 +5,7 @@ import math
 from typing import List, Any
 import networkx as nx
 import xlrd
-from networkx.algorithms.flow import preflow_push
+from networkx.algorithms.flow import preflow_push, build_residual_network
 
 file = xlrd.open_workbook("mad_house.xlsx")
 data = xlrd.open_workbook("data.xlsx")
@@ -80,7 +80,7 @@ for item in res_arr:
         pp = preflow_push(G_flow, "ward_1", "ward_7", capacity="residual_capacity",residual=RG)  # Complexity O(sqr(V)sqrt(E)) //Best since Orlin is unavailable.
         print(pp.edges.data())
         print(nx.to_numpy_matrix(pp, weight="flow"))
-        print("Structural Hole weak ties:")
+        print("Calculation structural Hole weak ties:")
         const = nx.constraint(G_flow, weight="residual_capacity")  # Less constraint indicates more structural holes in a network
         print(const)
         print(min(const, key=const.get))

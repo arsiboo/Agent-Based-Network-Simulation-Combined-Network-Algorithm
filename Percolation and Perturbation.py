@@ -5,8 +5,13 @@ import numpy as np
 import xlrd
 
 
-def perturbation():
-    return 0
+def perturbation_divergence(previous, after):
+    return previous - after
+
+
+def percolation_divergence(previous, after):
+    return previous - after
+
 
 file = xlrd.open_workbook("mad_house.xlsx")
 data = xlrd.open_workbook("data.xlsx")
@@ -52,16 +57,22 @@ for row in range(hospital.nrows):
 
 nx.set_node_attributes(G_flow, 0.1, name='overflow_state')
 
-for label, capacity, transition in zip(edge_label_output,  node_max_capacity, edge_transition):
+for label, capacity, transition in zip(edge_label_output, node_max_capacity, edge_transition):
     for u, v, net_edge in G_flow.edges(data=True):
         if net_edge['label_input'] == label:
             net_edge['per_capacity'] = capacity / transition
 
-
 for state, node in zip(node_overflow_state, upcoming_node):
     for n, net_node in G_flow.nodes(data=True):
         if n == node:
-            nx.set_node_attributes(G_flow, {n: state}, name='overflow_state')
+            if state > 0:
+                nx.set_node_attributes(G_flow, {n: 0}, name='overflow_state')  # Not Overflowed
+            elif state == 0:
+                nx.set_node_attributes(G_flow, {n: 0.5}, name='overflow_state')  # On Edge
+            elif state < 0:
+                nx.set_node_attributes(G_flow, {n: 1}, name='overflow_state')  # Overflowed
             print("Calculating percolation:")
-            print(nx.percolation_centrality(G_flow, attribute='overflow_state', weight='per_capacity'))
-
+            print(n)
+            print(state)
+            print(nx.percolation_centrality(G_flow, attribute='overflow_state',
+                                            weight='per_capacity'))  # Probability of percolation

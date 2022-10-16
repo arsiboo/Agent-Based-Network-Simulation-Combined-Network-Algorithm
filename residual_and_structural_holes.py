@@ -5,7 +5,6 @@
 import math
 from typing import List, Any
 import networkx as nx
-import numpy as np
 import pandas as pd
 import xlrd
 from networkx.algorithms.flow import preflow_push, build_residual_network, edmonds_karp

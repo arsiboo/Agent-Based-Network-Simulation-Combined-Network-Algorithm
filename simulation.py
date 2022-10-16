@@ -1,8 +1,22 @@
+import random
+
 import networkx as nx
 import queueing_tool as qt
 import xlrd
 import xlsxwriter
 import math
+
+from queueing_tool import InfoAgent, GreedyAgent, Agent
+
+
+class InfoAgentWithType(InfoAgent):
+    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
+        super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
+
+
+class GreedyAgentWithType(GreedyAgent):
+    def __init__(self, agent_id=(0, 0)):
+        super().__init__(agent_id + ("GreedyAgent",))
 
 
 class SharedQueueServer(qt.QueueServer):
@@ -145,19 +159,20 @@ q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for valu
 #             edge_label_list_dict[key].items()}
 
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
-q_classes[1] = qt.QueueServer # The first server has unlimited queue and is type of QueueServer
+q_classes[1] = qt.QueueServer  # The first server has unlimited queue and is type of QueueServer
 
 shared_state = [0]
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
     'num_servers': int(beds_per_ward[int(value)]),  # number of beds
     'collect_data': True,
-    'qbuffer': 10,  # Limiting queue size so that they won't go to other wards,
+    'qbuffer': 0,  # Limiting queue size so that they won't go to other wards,
     # 'shared_server_state': shared_state,
     'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
+q_args[1]['AgentFactory'] = lambda f: random.choice([GreedyAgentWithType(f), InfoAgentWithType(f)])
 
 print(q_classes)
 print(q_args)
@@ -172,8 +187,9 @@ net.simulate(t=8760)  # t 365*24=8760, and n=
 # net.show_type(edge_type=4)
 
 row = 0
-workbook = xlsxwriter.Workbook('data.xlsx')
+workbook = xlsxwriter.Workbook('outcome.xlsx')
 queue_sheet = workbook.add_worksheet('queue_info')
+agent_sheet = workbook.add_worksheet('agent_info')
 
 queue_sheet.write(row, 0, 'The arrival time of an agent')
 queue_sheet.write(row, 1, 'The service start time of an agent')
@@ -188,6 +204,11 @@ queue_sheet.write(row, 9, 'Edge distribution')
 queue_sheet.write(row, 10, 'Server Max Capacity')
 queue_sheet.write(row, 11, 'Overflow?')
 queue_sheet.write(row, 12, 'Occupancy Percentage')
+queue_sheet.write(row, 13, 'Average service time')
+
+agent_sheet.write(row, 0, 'The arrival time of an agent')
+agent_sheet.write(row, 1, 'The service start time of an agent')
+agent_sheet.write(row, 2, 'Agent Type')
 
 row += 1
 
@@ -197,7 +218,7 @@ for source in DG_labeling.nodes():
             if DG_labeling.has_edge(source, target):
                 queue_data = net.get_queue_data(edge=(source, target))
                 agent_data = net.get_agent_data(edge=(source, target))
-                for item1 in queue_data:
+                for item1, item2 in zip(queue_data, agent_data):
                     queue_sheet.write_row(row, 0, item1)  # Data such as number of agents in server and agents in queue
                     queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])  # Edge label
                     queue_sheet.write(row, 7, wards_map_ward[source])  # Source
@@ -208,10 +229,13 @@ for source in DG_labeling.nodes():
                     queue_sheet.write(row, 11, beds_per_ward[target] - item1[
                         4])  # Whether there is an overflow or not and by how much
                     if item1[4] != 0:
-                        perc = 100 * (item1[4]/beds_per_ward[target])
+                        perc = 100 * (item1[4] / beds_per_ward[target])
                     else:
                         perc = float("inf")
                     queue_sheet.write(row, 12, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
+                    queue_sheet.write(row, 13, item1[2] - item1[0])
+                    agent_sheet.write_row(row, 0, item2)
+                    # agent_sheet.write_row(row, 2, )
                     row += 1
 workbook.close()
 

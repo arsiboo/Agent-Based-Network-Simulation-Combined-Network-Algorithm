@@ -1,7 +1,7 @@
-# Percolation
+# Percolation and Perturbation
+# Sort the output file before running the codes
 from typing import List, Any
 import networkx as nx
-import numpy as np
 import xlrd
 
 
@@ -72,7 +72,10 @@ for state, node in zip(node_overflow_state, upcoming_node):
             elif state < 0:
                 nx.set_node_attributes(G_flow, {n: 1}, name='overflow_state')  # Overflowed
             print("Calculating percolation:")
-            print(n)
-            print(state)
-            print(nx.percolation_centrality(G_flow, attribute='overflow_state',
-                                            weight='per_capacity'))  # Probability of percolation
+            percolation=nx.percolation_centrality(G_flow, attribute='overflow_state',
+                                            weight='per_capacity')
+            print(dict(reversed(sorted(percolation.items(), key=lambda it: it[1]))))
+            # Specifically, xt i=0 indicates a non-percolated state at time t,
+            # xt i=1 indicates a fully percolated state at time t,
+            # while a partially percolated state corresponds to 0vxt iv1.
+            # The higher the value, the higher is the percolation of node.

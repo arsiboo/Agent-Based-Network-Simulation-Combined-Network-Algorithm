@@ -1,12 +1,10 @@
 import random
-
 import networkx as nx
 import queueing_tool as qt
 import xlrd
 import xlsxwriter
 import math
-
-from queueing_tool import InfoAgent, GreedyAgent, Agent
+from queueing_tool import InfoAgent, GreedyAgent, Agent, QueueNetwork
 
 
 class InfoAgentWithType(InfoAgent):
@@ -14,9 +12,25 @@ class InfoAgentWithType(InfoAgent):
         super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
 
 
-class GreedyAgentWithType(GreedyAgent):
-    def __init__(self, agent_id=(0, 0)):
-        super().__init__(agent_id + ("GreedyAgent",))
+class SuperPatient(GreedyAgent):
+    patientTag = ""
+    pathList = []
+
+    def __init__(self, agent_id=(0, 0), tag="", *theList):
+        self.patientTag = tag
+        self.pathList = theList
+        super().__init__(agent_id + (self.patientTag,))
+
+    def desired_destination(self, network, edge):
+        current_edge_source = edge[0]
+        current_edge_target = edge[1]
+        current_edge_index = edge[2]
+        current_edge_type = edge[3]
+        go = []
+        target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
+        for _out in target_outgoing_edges:
+            go.append(_out)
+        return random.choice(go)
 
 
 class SharedQueueServer(qt.QueueServer):
@@ -53,14 +67,11 @@ def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
 
 
-def setup_server_nums(queue_label):
-    return 0
-
-
 file = xlrd.open_workbook("mad_house.xlsx")  # access to the file
 wards_relations = file.sheet_by_name("Links")  # access to relationships of wards
 wards = file.sheet_by_name("Nodes")  # access to nodes attributes
 traffic_rates = file.sheet_by_name("Rate")
+patient_type_permissions = file.sheet_by_name("Agents")
 
 # list of information for each node
 nodes_mapping_list = []
@@ -104,6 +115,15 @@ for row in range(wards_relations.nrows):
         DG_labeling.add_weighted_edges_from([(int(_Node1), int(_Node2), float(_data[2].value))])  # Labels for edges
         DG_probability.add_weighted_edges_from(
             [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
+
+
+patients = []
+for row in range(patient_type_permissions.nrows):
+    values = []
+    for col in range(patient_type_permissions.ncols):
+        values.append(patient_type_permissions.cell(row, col).value)
+    patients.append(values)
+
 
 # Importing traffic flow rate per hour
 for row in range(traffic_rates.nrows):
@@ -161,7 +181,7 @@ q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for valu
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
 q_classes[1] = qt.QueueServer  # The first server has unlimited queue and is type of QueueServer
 
-shared_state = [0]
+# shared_state = [0]
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
     'num_servers': int(beds_per_ward[int(value)]),  # number of beds
@@ -172,7 +192,8 @@ q_args = {label: {
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
-q_args[1]['AgentFactory'] = lambda f: random.choice([GreedyAgentWithType(f), InfoAgentWithType(f)])
+q_args[1]['AgentFactory'] = lambda f: random.choice(
+    [SuperPatient(f, "ChildPatient", 1), SuperPatient(f, "AdultPatient", 1), SuperPatient(f, "OldPatient", 1)])
 
 print(q_classes)
 print(q_args)
@@ -182,7 +203,9 @@ net.start_collecting_data()
 net.set_transitions(edge_transition_list_dict)  # set transition dictionary for routing probability
 net.transitions(False)
 net.initialize(edge_type=1)
-net.simulate(t=8760)  # t 365*24=8760, and n=
+net.simulate(t=8760)  # t 365*24=8760
+
+# net.simulate(t=30)
 
 # net.show_type(edge_type=4)
 
@@ -205,6 +228,7 @@ queue_sheet.write(row, 10, 'Server Max Capacity')
 queue_sheet.write(row, 11, 'Overflow?')
 queue_sheet.write(row, 12, 'Occupancy Percentage')
 queue_sheet.write(row, 13, 'Average service time')
+queue_sheet.write(row, 14, 'AgentType')
 
 agent_sheet.write(row, 0, 'The arrival time of an agent')
 agent_sheet.write(row, 1, 'The service start time of an agent')
@@ -234,6 +258,7 @@ for source in DG_labeling.nodes():
                         perc = float("inf")
                     queue_sheet.write(row, 12, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
                     queue_sheet.write(row, 13, item1[2] - item1[0])
+                    queue_sheet.write(row, 14, item2[2])
                     agent_sheet.write_row(row, 0, item2)
                     # agent_sheet.write_row(row, 2, )
                     row += 1

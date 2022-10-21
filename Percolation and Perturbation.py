@@ -5,20 +5,17 @@ import networkx as nx
 import xlrd
 
 
-def perturbation_divergence(previous, after):
-    return previous - after
-
-
-def percolation_divergence(previous, after):
-    return previous - after
+def perturbation(percol):
+    print(percol)
+    return 0
 
 
 file = xlrd.open_workbook("mad_house.xlsx")
-data = xlrd.open_workbook("data.xlsx")
+data = xlrd.open_workbook("outcome.xlsx")
 
 hospital = file.sheet_by_name("Links")
 wards = file.sheet_by_name("Nodes")
-output = data.sheet_by_name("queue_info")
+output1 = data.sheet_by_name("queue_info")
 
 G_flow = nx.DiGraph()
 
@@ -30,9 +27,9 @@ node_overflow_state = []
 edge_label_output: List[Any] = []
 
 # Importing capacities, patient flow and edge_label according to the time
-for row in range(output.nrows):
+for row in range(output1.nrows):
     if row > 0:
-        _data = output.row_slice(row)
+        _data = output1.row_slice(row)
         edge_label_output.append(_data[6].value)
         upcoming_node.append(_data[8].value)
         edge_transition.append(_data[9].value)
@@ -65,17 +62,19 @@ for label, capacity, transition in zip(edge_label_output, node_max_capacity, edg
 for state, node in zip(node_overflow_state, upcoming_node):
     for n, net_node in G_flow.nodes(data=True):
         if n == node:
-            if state > 0:
-                nx.set_node_attributes(G_flow, {n: 0}, name='overflow_state')  # Not Overflowed
+            if state > 0:  # should I normalize them?
+                nx.set_node_attributes(G_flow, {n: 0.0}, name='overflow_state')  # Not Overflowed or unaffected
             elif state == 0:
-                nx.set_node_attributes(G_flow, {n: 0.5}, name='overflow_state')  # On Edge
+                nx.set_node_attributes(G_flow, {n: 0.5}, name='overflow_state')  # On edge
             elif state < 0:
-                nx.set_node_attributes(G_flow, {n: 1}, name='overflow_state')  # Overflowed
+                nx.set_node_attributes(G_flow, {n: 1}, name='overflow_state')  # Overflowed or affected
             print("Calculating percolation:")
-            percolation=nx.percolation_centrality(G_flow, attribute='overflow_state',
-                                            weight='per_capacity')
+            percolation = nx.percolation_centrality(G_flow, attribute='overflow_state',
+                                                    weight='per_capacity')
             print(dict(reversed(sorted(percolation.items(), key=lambda it: it[1]))))
             # Specifically, xt i=0 indicates a non-percolated state at time t,
             # xt i=1 indicates a fully percolated state at time t,
             # while a partially percolated state corresponds to 0vxt iv1.
             # The higher the value, the higher is the percolation of node.
+            print("Calculating perturbation:")
+            print(perturbation(percolation))

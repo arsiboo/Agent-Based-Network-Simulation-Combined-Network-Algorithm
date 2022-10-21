@@ -28,7 +28,8 @@ class SuperPatient(GreedyAgent):
         current_edge_type = edge[3]
         go = []
         target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
-        for _out in target_outgoing_edges:
+        for _out in target_outgoing_edges: # Try to get the outgoing wards.
+            print(_out)
             go.append(_out)
         return random.choice(go)
 
@@ -192,8 +193,8 @@ q_args = {label: {
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
-q_args[1]['AgentFactory'] = lambda f: random.choice(
-    [SuperPatient(f, "ChildPatient", 1), SuperPatient(f, "AdultPatient", 1), SuperPatient(f, "OldPatient", 1)])
+q_args[1]['AgentFactory'] = lambda f: random.choice([SuperPatient(f, patients[1][0], 1),SuperPatient(f, patients[2][0], 1),SuperPatient(f, patients[3][0], 1)])
+#q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
 
 print(q_classes)
 print(q_args)

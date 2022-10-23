@@ -28,7 +28,7 @@ class SuperPatient(GreedyAgent):
         current_edge_type = edge[3]
         go = []
         target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
-        for _out in target_outgoing_edges: # Try to get the outgoing wards.
+        for _out in target_outgoing_edges:  # Try to get the outgoing wards.
             go.append(_out)
         return random.choice(go)
 
@@ -67,6 +67,7 @@ def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
 
 
+
 file = xlrd.open_workbook("mad_house.xlsx")  # access to the file
 wards_relations = file.sheet_by_name("Links")  # access to relationships of wards
 wards = file.sheet_by_name("Nodes")  # access to nodes attributes
@@ -101,7 +102,6 @@ for row in range(wards.nrows):
         wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
         wards_map_ward[nodes_mapping_list[int(_data[1].value)]] = _data[0].value  # Mapping Nodes to Index.
 
-
 # importing wards relationships
 for row in range(wards_relations.nrows):
     if row > 0:
@@ -112,14 +112,12 @@ for row in range(wards_relations.nrows):
         DG_probability.add_weighted_edges_from(
             [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
 
-
 patients = []
 for row in range(patient_type_permissions.nrows):
     values = []
     for col in range(patient_type_permissions.ncols):
         values.append(patient_type_permissions.cell(row, col).value)
     patients.append(values)
-
 
 # Importing traffic flow rate per hour
 for row in range(traffic_rates.nrows):
@@ -184,12 +182,13 @@ q_args = {label: {
     'collect_data': True,
     'qbuffer': 0,  # Limiting queue size so that they won't go to other wards,
     # 'shared_server_state': shared_state,
-    'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
+    'service_f': (lambda tt: lambda t: t + float(avg_serving_time[tt]))(int(value))  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
-q_args[1]['AgentFactory'] = lambda f: random.choice([SuperPatient(f, patients[1][0], 1),SuperPatient(f, patients[2][0], 1),SuperPatient(f, patients[3][0], 1)])
-#q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
+q_args[1]['AgentFactory'] = lambda f: random.choice(
+    [SuperPatient(f, patients[1][0], 1), SuperPatient(f, patients[2][0], 1), SuperPatient(f, patients[3][0], 1)])
+# q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
 
 print(q_classes)
 print(q_args)

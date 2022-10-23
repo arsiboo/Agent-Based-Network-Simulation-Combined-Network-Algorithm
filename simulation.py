@@ -1,4 +1,6 @@
 import random
+from copy import deepcopy
+
 import networkx as nx
 import queueing_tool as qt
 import xlrd
@@ -28,8 +30,7 @@ class SuperPatient(GreedyAgent):
         current_edge_type = edge[3]
         go = []
         target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
-        for _out in target_outgoing_edges: # Try to get the outgoing wards.
-            print(_out)
+        for _out in target_outgoing_edges:
             go.append(_out)
         return random.choice(go)
 
@@ -102,11 +103,6 @@ for row in range(wards.nrows):
         wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
         wards_map_ward[nodes_mapping_list[int(_data[1].value)]] = _data[0].value  # Mapping Nodes to Index.
 
-print("wards mapping index")
-print(wards_map_index)
-print("nodes mapping list")
-print(nodes_mapping_list)
-
 # importing wards relationships
 for row in range(wards_relations.nrows):
     if row > 0:
@@ -117,14 +113,12 @@ for row in range(wards_relations.nrows):
         DG_probability.add_weighted_edges_from(
             [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
 
-
 patients = []
 for row in range(patient_type_permissions.nrows):
     values = []
     for col in range(patient_type_permissions.ncols):
         values.append(patient_type_permissions.cell(row, col).value)
     patients.append(values)
-
 
 # Importing traffic flow rate per hour
 for row in range(traffic_rates.nrows):
@@ -158,6 +152,7 @@ for edge in label_edge_list:
         edge_label_list_dict[edge[0]] = {edge[1]: labels}
     else:
         edge_label_list_dict[edge[0]][edge[1]] = labels
+edge_label_list_dict[len(edge_label_list_dict)] = {}
 
 # Defining routing probability
 for edge in prob_edge_list:
@@ -184,17 +179,21 @@ q_classes[1] = qt.QueueServer  # The first server has unlimited queue and is typ
 
 # shared_state = [0]
 # defining number of servers, arrival rate and the service time for each edge.
-q_args = {label: {
-    'num_servers': int(beds_per_ward[int(value)]),  # number of beds
-    'collect_data': True,
-    'qbuffer': 0,  # Limiting queue size so that they won't go to other wards,
-    # 'shared_server_state': shared_state,
-    'service_f': lambda t: t + float(avg_serving_time[int(value)])  # Average Serving Time
-} for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
+q_args = {}
+for key, value in edge_label_list_dict.items():
+    q_args[key] = {
+        'num_servers': int(beds_per_ward[int(key)]),  # number of beds
+        'service_f': (lambda tt: lambda t: t + float(avg_serving_time[tt]))(int(key)),  # Average Serving Time
+        'collect_data': True,
+        'qbuffer': 0  # Limiting queue size so that they won't go to other wards,
+        # 'shared_server_state': shared_state,
+    }
+
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
-q_args[1]['AgentFactory'] = lambda f: random.choice([SuperPatient(f, patients[1][0], 1),SuperPatient(f, patients[2][0], 1),SuperPatient(f, patients[3][0], 1)])
-#q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
+q_args[1]['AgentFactory'] = lambda f: random.choice(
+    [SuperPatient(f, patients[1][0], 1), SuperPatient(f, patients[2][0], 1), SuperPatient(f, patients[3][0], 1)])
+# q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
 
 print(q_classes)
 print(q_args)
@@ -258,7 +257,7 @@ for source in DG_labeling.nodes():
                     else:
                         perc = float("inf")
                     queue_sheet.write(row, 12, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
-                    queue_sheet.write(row, 13, item1[2] - item1[0])
+                    queue_sheet.write(row, 13, item1[2] - item1[1])
                     queue_sheet.write(row, 14, item2[2])
                     agent_sheet.write_row(row, 0, item2)
                     # agent_sheet.write_row(row, 2, )

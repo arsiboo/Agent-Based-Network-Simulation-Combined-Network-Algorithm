@@ -1,5 +1,6 @@
 import random
 import networkx as nx
+import numpy as np
 import queueing_tool as qt
 import xlrd
 import xlsxwriter
@@ -7,18 +8,75 @@ import math
 from queueing_tool import InfoAgent, GreedyAgent, Agent, QueueNetwork
 
 
-class InfoAgentWithType(InfoAgent):
-    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
-        super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
+def generate_alternative_graph(graph):
+    subchains = [[]]
+    node_replicas_index1 = {}
+    node_replicas_index2 = {}
+    current_node_out_index = {}
+    node_labels_map = {}
+    node_counter = 0
+    alternative_graph = nx.DiGraph()
+
+    for node, node_data in graph.nodes(data=True):
+        _in_degree = graph.in_degree(node)
+
+        if node_counter == 0:
+            node_replicas_index1[str(node)] = 1
+            node_replicas_index2[str(node)] = 1
+            current_node_out_index[str(node)] = 0
+            _in_degree += 1
+        else:
+            node_replicas_index1[str(node)] = 0
+            node_replicas_index2[str(node)] = 0
+            current_node_out_index[str(node)] = -1
+
+        _counter = 0
+        while True:
+            node_to_add = (_counter, node)
+            alternative_graph.add_node(node_to_add, **node_data)
+            node_labels_map[node_to_add] = r'${' + str(node).replace("_", "-") + '}_' + str(_counter) + '$'
+
+            _counter += 1
+            _in_degree -= 1
+            if _in_degree < 1:
+                break
+
+        node_counter += 1
+
+    nodes = []
+    all_edges = sorted(list(graph.edges), key=lambda x: x[2])
+
+    for edge in all_edges:
+
+        if (current_node_out_index[str(edge[0])], edge[0]) not in nodes:
+            nodes.append((current_node_out_index[str(edge[0])], edge[0]))
+
+        a = node_replicas_index1[str(edge[1])]
+        if (node_replicas_index1[str(edge[1])], edge[1]) not in nodes:
+            nodes.append((node_replicas_index1[str(edge[1])], edge[1]))
+            node_replicas_index1[str(edge[1])] += 1
+            current_node_out_index[str(edge[1])] += 1
+
+        edge_data = graph.get_edge_data(u=edge[0], v=edge[1], key=edge[2])
+        alternative_graph.add_edge(
+            (current_node_out_index[str(edge[0])], edge[0]),
+            (a, edge[1]), **edge_data)
+
+    return alternative_graph
+
+
+#class InfoAgentWithType(InfoAgent):
+#    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
+#        super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
 
 
 class SuperPatient(GreedyAgent):
     patientTag = ""
     pathList = []
 
-    def __init__(self, agent_id=(0, 0), tag="", *theList):
+    def __init__(self, agent_id=(0, 0), tag="", graph=0):
         self.patientTag = tag
-        self.pathList = theList
+        self.pathList = 1
         super().__init__(agent_id + (self.patientTag,))
 
     def desired_destination(self, network, edge):
@@ -67,7 +125,6 @@ def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
 
 
-
 file = xlrd.open_workbook("mad_house.xlsx")  # access to the file
 wards_relations = file.sheet_by_name("Links")  # access to relationships of wards
 wards = file.sheet_by_name("Nodes")  # access to nodes attributes
@@ -112,6 +169,8 @@ for row in range(wards_relations.nrows):
         DG_probability.add_weighted_edges_from(
             [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
 
+
+# Getting Patient Type
 patients = []
 for row in range(patient_type_permissions.nrows):
     values = []
@@ -124,6 +183,10 @@ for row in range(traffic_rates.nrows):
     if row > 0:
         _data = traffic_rates.row_slice(row)
         rate_per_hour.append(_data[1].value)
+
+# remove self-loops:
+DG_labeling.remove_edges_from(nx.selfloop_edges(DG_labeling))
+DG_probability.remove_edges_from(nx.selfloop_edges(DG_probability))
 
 # Generating adjacency list, and convert it to dictionary
 adj_list = nx.generate_adjlist(DG_labeling)
@@ -145,23 +208,21 @@ for i in adj_list:
 
 adj_list_dict_int = {int(key): adj_list_dict[key] for key in adj_list_dict}  # making the keys integer
 
-for edge in label_edge_list:
-    labels = int(DG_labeling.get_edge_data(edge[0], edge[1])['weight'])  # As label
-    if edge[0] not in edge_label_list_dict:
-        edge_label_list_dict[edge[0]] = {edge[1]: labels}
+# Assigning labels and defining routing probability
+for lab_edge,prob_edge in zip(label_edge_list,prob_edge_list):
+    labels = int(DG_labeling.get_edge_data(lab_edge[0], lab_edge[1])['weight'])  # As label
+    probabilities = DG_probability.get_edge_data(prob_edge[0], prob_edge[1])['weight']  # As probability
+    if lab_edge[0] not in edge_label_list_dict:
+        edge_label_list_dict[lab_edge[0]] = {lab_edge[1]: labels}
     else:
-        edge_label_list_dict[edge[0]][edge[1]] = labels
+        edge_label_list_dict[lab_edge[0]][lab_edge[1]] = labels
+    if prob_edge[0] not in edge_transition_list_dict:
+        edge_transition_list_dict[prob_edge[0]] = {prob_edge[1]: probabilities}
+    else:
+        edge_transition_list_dict[prob_edge[0]][prob_edge[1]] = probabilities
 
-# Defining routing probability
-for edge in prob_edge_list:
-    probabilities = DG_probability.get_edge_data(edge[0], edge[1])['weight']  # As probability
-    if edge[0] not in edge_transition_list_dict:
-        edge_transition_list_dict[edge[0]] = {edge[1]: probabilities}
-    else:
-        edge_transition_list_dict[edge[0]][edge[1]] = probabilities
 
 # preparing the graph for simulation
-
 g = qt.adjacency2graph(adj_list_dict_int, edge_type=edge_label_list_dict)
 dg = qt.QueueNetworkDiGraph(g)
 
@@ -187,22 +248,18 @@ q_args = {label: {
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
 q_args[1]['AgentFactory'] = lambda f: random.choice(
-    [SuperPatient(f, patients[1][0], 1), SuperPatient(f, patients[2][0], 1), SuperPatient(f, patients[3][0], 1)])
+    [SuperPatient(f, patients[1][0],1), SuperPatient(f, patients[2][0], 1), SuperPatient(f, patients[3][0], 1)])
 # q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
 
 print(q_classes)
 print(q_args)
 
-net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
+net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=1)
 net.start_collecting_data()
-net.set_transitions(edge_transition_list_dict)  # set transition dictionary for routing probability
+net.set_transitions(edge_transition_list_dict)  # sets transition dictionary for routing probability
 net.transitions(False)
 net.initialize(edge_type=1)
 net.simulate(t=8760)  # t 365*24=8760
-
-# net.simulate(t=30)
-
-# net.show_type(edge_type=4)
 
 row = 0
 workbook = xlsxwriter.Workbook('outcome.xlsx')

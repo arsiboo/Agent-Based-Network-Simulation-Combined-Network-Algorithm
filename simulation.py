@@ -8,6 +8,61 @@ import math
 from queueing_tool import InfoAgent, GreedyAgent, Agent, QueueNetwork
 
 
+#class InfoAgentWithType(InfoAgent):
+#    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
+#        super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
+
+
+class SuperPatient(GreedyAgent):
+    patientTag = ""
+    pathList = []
+
+    def __init__(self, agent_id=(0, 0), tag="", graph=0):
+        self.patientTag = tag
+        self.pathList = 1
+        super().__init__(agent_id + (self.patientTag,))
+
+    def desired_destination(self, network, edge):
+        current_edge_source = edge[0]
+        current_edge_target = edge[1]
+        current_edge_index = edge[2]
+        current_edge_type = edge[3]
+        go = []
+        target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
+        for _out in target_outgoing_edges:  # Try to get the outgoing wards.
+            go.append(_out)
+        return random.choice(go)
+
+
+class SharedQueueServer(qt.QueueServer):
+    def __init__(self, shared_server_state: 0, **kwargs):
+        super().__init__(**kwargs)
+        self.shared_server_state = shared_server_state
+        self.total_num_servers = kwargs.get("num_servers", 1)
+
+    @property
+    def num_servers(self):
+        return self.total_num_servers - self.shared_server_state[0]
+
+    @num_servers.setter
+    def num_servers(self, value):
+        self.total_num_servers = value
+
+    def next_event(self):
+        next_event_type = self.next_event_description()
+        # Event type 2 is a departure
+        if next_event_type == 2:
+            self.shared_server_state[0] -= 1
+            return super().next_event()
+
+        # Event type 1 is an arrival
+        elif next_event_type == 1:
+            # We only use a server if there is capacity.
+            if self.num_system - len(self.queue) < self.num_servers:
+                self.shared_server_state[0] += 1
+            super().next_event()
+
+
 def generate_alternative_graph(graph):
     subchains = [[]]
     node_replicas_index1 = {}
@@ -65,64 +120,15 @@ def generate_alternative_graph(graph):
     return alternative_graph
 
 
-#class InfoAgentWithType(InfoAgent):
-#    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
-#        super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
-
-
-class SuperPatient(GreedyAgent):
-    patientTag = ""
-    pathList = []
-
-    def __init__(self, agent_id=(0, 0), tag="", graph=0):
-        self.patientTag = tag
-        self.pathList = 1
-        super().__init__(agent_id + (self.patientTag,))
-
-    def desired_destination(self, network, edge):
-        current_edge_source = edge[0]
-        current_edge_target = edge[1]
-        current_edge_index = edge[2]
-        current_edge_type = edge[3]
-        go = []
-        target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
-        for _out in target_outgoing_edges:  # Try to get the outgoing wards.
-            go.append(_out)
-        return random.choice(go)
-
-
-class SharedQueueServer(qt.QueueServer):
-    def __init__(self, shared_server_state: 0, **kwargs):
-        super().__init__(**kwargs)
-        self.shared_server_state = shared_server_state
-        self.total_num_servers = kwargs.get("num_servers", 1)
-
-    @property
-    def num_servers(self):
-        return self.total_num_servers - self.shared_server_state[0]
-
-    @num_servers.setter
-    def num_servers(self, value):
-        self.total_num_servers = value
-
-    def next_event(self):
-        next_event_type = self.next_event_description()
-        # Event type 2 is a departure
-        if next_event_type == 2:
-            self.shared_server_state[0] -= 1
-            return super().next_event()
-
-        # Event type 1 is an arrival
-        elif next_event_type == 1:
-            # We only use a server if there is capacity.
-            if self.num_system - len(self.queue) < self.num_servers:
-                self.shared_server_state[0] += 1
-            super().next_event()
-
+# generate ordered routing graph
+def generate_ordered_routing_graph(matrix, row):
+    print(matrix[row])
+    return "me"
 
 # arrival rate only for the first
 def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
+
 
 
 file = xlrd.open_workbook("mad_house.xlsx")  # access to the file
@@ -149,7 +155,7 @@ rate_per_hour = []
 DG_labeling = nx.DiGraph()
 DG_probability = nx.DiGraph()
 
-# importing wards Information
+# importing wards information such as node index which should start from 0, Number of beds in each ward, and their mappings
 for row in range(wards.nrows):
     if row > 0:
         _data = wards.row_slice(row)
@@ -159,7 +165,7 @@ for row in range(wards.nrows):
         wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
         wards_map_ward[nodes_mapping_list[int(_data[1].value)]] = _data[0].value  # Mapping Nodes to Index.
 
-# importing wards relationships
+# importing link information such as wrd relations, labels for each link which should start with 1 and ends with 0, and distribution probability
 for row in range(wards_relations.nrows):
     if row > 0:
         _data = wards_relations.row_slice(row)
@@ -170,7 +176,7 @@ for row in range(wards_relations.nrows):
             [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
 
 
-# Getting Patient Type
+# Importing PatientType and their ordered paths from Agent Sheet
 patients = []
 for row in range(patient_type_permissions.nrows):
     values = []
@@ -178,7 +184,10 @@ for row in range(patient_type_permissions.nrows):
         values.append(patient_type_permissions.cell(row, col).value)
     patients.append(values)
 
-# Importing traffic flow rate per hour
+
+generate_ordered_routing_graph(patients, 2)
+
+# Importing traffic flow rate per hour from rate sheet
 for row in range(traffic_rates.nrows):
     if row > 0:
         _data = traffic_rates.row_slice(row)
@@ -188,9 +197,9 @@ for row in range(traffic_rates.nrows):
 DG_labeling.remove_edges_from(nx.selfloop_edges(DG_labeling))
 DG_probability.remove_edges_from(nx.selfloop_edges(DG_probability))
 
+
 # Generating adjacency list, and convert it to dictionary
 adj_list = nx.generate_adjlist(DG_labeling)
-
 label_edge_list = list(DG_labeling.edges)
 prob_edge_list = list(DG_probability.edges)
 adj_list_dict = {}
@@ -247,14 +256,12 @@ q_args = {label: {
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
-q_args[1]['AgentFactory'] = lambda f: random.choice(
-    [SuperPatient(f, patients[1][0],1), SuperPatient(f, patients[2][0], 1), SuperPatient(f, patients[3][0], 1)])
-# q_args[1]['AgentFactory'] = [lambda f: random.choice([SuperPatient(f, patients[i][0], 1)]) for i in range(len(patients)-1)]
+q_args[1]['AgentFactory'] = lambda f: random.choice([SuperPatient(f, patients[i][0],1) for i in range(1,len(patients))])
 
 print(q_classes)
 print(q_args)
 
-net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=1)
+net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
 net.start_collecting_data()
 net.set_transitions(edge_transition_list_dict)  # sets transition dictionary for routing probability
 net.transitions(False)

@@ -12,8 +12,8 @@ distribution_per_wards = {}
 orig_dataset = pd.read_excel("akademiska.xlsx", "serving t (length of stay)")
 orig_dataset = orig_dataset.dropna(subset=['los_ward'])
 
-file = xlrd.open_workbook("akademiska.xlsx")  # access to the file
-wards = file.sheet_by_name("Nodes")  # access to nodes attributes
+file = xlrd.open_workbook("akademiska.xlsx") 
+wards = file.sheet_by_name("Nodes")  
 
 wards_list = []
 

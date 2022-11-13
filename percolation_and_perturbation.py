@@ -4,10 +4,8 @@ from typing import List, Any
 import networkx as nx
 import numpy as np
 import xlrd
-import percolate
 
-
-def normalizeData(data):
+def normalize_data(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
@@ -17,6 +15,13 @@ def perturbation(percol):
         if v >= 0.1:
             widness += 1
     return str(widness) + " wards out of " + str(len(percol)) + " are in a vulnerable condition"
+
+
+def percolation_divergance(): #Measuring the significance of the network resilience through the divergance of the percolation
+    return 0
+
+def perturbation_divergance(): #Measuring the significant of the vulnerability through the divergance of the perturbation
+    return 0
 
 
 file = xlrd.open_workbook("mad_house.xlsx")
@@ -45,7 +50,7 @@ for row in range(output1.nrows):
         node_max_capacity.append(_data[10].value)
         node_overflow_state.append(_data[11].value)
 
-overflow_states = abs((normalizeData(node_overflow_state) - 1) * -1)
+overflow_states = abs((normalize_data(node_overflow_state) - 1) * -1)
 
 nodes_mapping_list = []
 capacity_mapping_list = []

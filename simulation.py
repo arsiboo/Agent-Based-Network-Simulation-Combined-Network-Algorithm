@@ -6,6 +6,56 @@ import xlrd
 import xlsxwriter
 import math
 from queueing_tool import InfoAgent, GreedyAgent, Agent, QueueNetwork
+import os
+import pandas as pd
+import scipy.stats
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+
+directory = 'Fitter'
+ignored_files = [directory + "/.DS_Store"]
+wards_dists = {}
+wards_args = {}
+
+
+orig_dataset = pd.read_excel("akademiska.xlsx", "serving t (length of stay)")
+orig_dataset = orig_dataset.dropna(subset=['los_ward'])
+
+
+for filename in os.listdir(directory):
+    f = os.path.join(directory, filename)
+    if os.path.isfile(f) and f not in ignored_files:
+        dist_params = pd.read_excel(f,index_col=0)
+        dist_name = dist_params.columns[0]
+        dist_args = dist_params[dist_name].to_dict()
+        ward_name = f.replace(directory + "/fitted_distributions_", '').replace('.xlsx', '')
+
+        dataset = orig_dataset.loc[orig_dataset['OA_unit_SV'] == ward_name]
+        dataset = dataset[['los_ward']]
+        dataset.info()
+
+        sns.set_style('white')
+        sns.set_context("paper", font_scale=2)
+        sns.displot(data=dataset, x="los_ward", kind="hist", bins=100, aspect=1.5)
+        serving_time = dataset["los_ward"].values
+        plt.show()
+
+        wards_dists[ward_name] = getattr(scipy.stats, dist_name)
+        wards_args[ward_name] = dist_args
+        vals = wards_dists[ward_name].rvs(**dist_args, size=1000)
+        vals_df = pd.DataFrame(vals, columns=[dist_name])
+        vals_df2 = vals_df[vals_df[dist_name] < float(dataset.max())]
+
+        sns.set_style('white')
+        sns.set_context("paper", font_scale=2)
+        sns.displot(data=vals_df2, x=dist_name, kind="hist", bins=100, aspect=1.5)
+        plt.show()
+
+        pass
+
+print(wards_dists)
+
 
 
 #class InfoAgentWithType(InfoAgent):
@@ -28,7 +78,7 @@ class SuperPatient(GreedyAgent):
         current_edge_index = edge[2]
         current_edge_type = edge[3]
         go = []
-        target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index.
+        target_outgoing_edges = network.out_edges[current_edge_target]  # Returns the edge index of the outgoing links.
         for _out in target_outgoing_edges:  # Try to get the outgoing wards.
             go.append(_out)
         return random.choice(go)
@@ -131,7 +181,7 @@ def arr(t):
 
 
 
-file = xlrd.open_workbook("mad_house.xlsx")  # access to the file
+file = xlrd.open_workbook("akademiska.xlsx")  # access to the file
 wards_relations = file.sheet_by_name("Links")  # access to relationships of wards
 wards = file.sheet_by_name("Nodes")  # access to nodes attributes
 traffic_rates = file.sheet_by_name("Rate")
@@ -165,15 +215,14 @@ for row in range(wards.nrows):
         wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
         wards_map_ward[nodes_mapping_list[int(_data[1].value)]] = _data[0].value  # Mapping Nodes to Index.
 
-# importing link information such as wrd relations, labels for each link which should start with 1 and ends with 0, and distribution probability
+# importing link information such as ward relations, labels for each link which should start with 1 and ends with 0, and distribution probability
 for row in range(wards_relations.nrows):
     if row > 0:
         _data = wards_relations.row_slice(row)
         _Node1 = wards_map_index[_data[0].value]
         _Node2 = wards_map_index[_data[1].value]
         DG_labeling.add_weighted_edges_from([(int(_Node1), int(_Node2), float(_data[2].value))])  # Labels for edges
-        DG_probability.add_weighted_edges_from(
-            [(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
+        DG_probability.add_weighted_edges_from([(int(_Node1), int(_Node2), float(_data[3].value))])  # Routing probability for edges
 
 
 # Importing PatientType and their ordered paths from Agent Sheet
@@ -210,10 +259,10 @@ edge_transition_list_dict = {}
 for i in adj_list:
     i_splitted = i.split(' ')
     for j in range(1, len(i_splitted)):
-        if i[0] not in adj_list_dict or not isinstance(adj_list_dict[i[0]], list):
-            adj_list_dict[i[0]] = [int(i_splitted[j])]
+        if i_splitted[0] not in adj_list_dict or not isinstance(adj_list_dict[i_splitted[0]], list):
+            adj_list_dict[i_splitted[0]] = [int(i_splitted[j])]
         else:
-            adj_list_dict[i[0]].append(int(i_splitted[j]))
+            adj_list_dict[i_splitted[0]].append(int(i_splitted[j]))
 
 adj_list_dict_int = {int(key): adj_list_dict[key] for key in adj_list_dict}  # making the keys integer
 
@@ -319,14 +368,5 @@ for source in DG_labeling.nodes():
                     queue_sheet.write(row, 13, item1[2] - item1[1])
                     queue_sheet.write(row, 14, item2[2])
                     agent_sheet.write_row(row, 0, item2)
-                    # agent_sheet.write_row(row, 2, )
                     row += 1
 workbook.close()
-
-# pos = nx.spring_layout(dg.to_directed())
-# net.draw(pos=pos)
-
-# anim = net.animate()
-
-
-# if the ward is full keep the patient in the previous ward, or keep them in ED. or in  corridor.

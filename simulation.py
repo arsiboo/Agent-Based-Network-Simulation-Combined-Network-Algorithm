@@ -1,6 +1,5 @@
 import random
 import networkx as nx
-import numpy as np
 import queueing_tool as qt
 import xlrd
 import xlsxwriter
@@ -54,9 +53,11 @@ for filename in os.listdir(directory):
 
         pass
 
+#print(wards_dists) #: wards_lists[ward_name].rvs(wards_args[ward_name])
+b=wards_dists["Hjärtavdelning 50 F"].rvs(**wards_args["Hjärtavdelning 50 F"])
+
 print(wards_dists)
-
-
+print(len(wards_dists))
 
 #class InfoAgentWithType(InfoAgent):
 #    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
@@ -155,7 +156,6 @@ def generate_alternative_graph(graph):
 
         if (current_node_out_index[str(edge[0])], edge[0]) not in nodes:
             nodes.append((current_node_out_index[str(edge[0])], edge[0]))
-
         a = node_replicas_index1[str(edge[1])]
         if (node_replicas_index1[str(edge[1])], edge[1]) not in nodes:
             nodes.append((node_replicas_index1[str(edge[1])], edge[1]))
@@ -185,7 +185,7 @@ file = xlrd.open_workbook("akademiska.xlsx")  # access to the file
 wards_relations = file.sheet_by_name("Links")  # access to relationships of wards
 wards = file.sheet_by_name("Nodes")  # access to nodes attributes
 traffic_rates = file.sheet_by_name("Rate")
-patient_type_permissions = file.sheet_by_name("Agents")
+patient_type_permissions = file.sheet_by_name("Agents1")
 
 # list of information for each node
 nodes_mapping_list = []
@@ -213,9 +213,17 @@ for row in range(wards.nrows):
         beds_per_ward.append(_data[2].value)
         avg_serving_time.append(_data[3].value)
         wards_map_index[_data[0].value] = nodes_mapping_list[int(_data[1].value)]  # Mapping Index to Nodes.
+        if _data[0].value in wards_dists:
+            wards_dists[_data[1].value]=wards_dists.pop(_data[0].value)
+        else:
+            wards_dists[_data[1].value]=_data[3].value
         wards_map_ward[nodes_mapping_list[int(_data[1].value)]] = _data[0].value  # Mapping Nodes to Index.
 
-# importing link information such as ward relations, labels for each link which should start with 1 and ends with 0, and distribution probability
+
+print(wards_dists)
+print(len(wards_dists))
+
+# importing link information such as ward connections, labels for each link which should start with 1 and ends with 0, and distribution probability
 for row in range(wards_relations.nrows):
     if row > 0:
         _data = wards_relations.row_slice(row)
@@ -301,8 +309,12 @@ q_args = {label: {
     'collect_data': True,
     'qbuffer': 0,  # Limiting queue size so that they won't go to other wards,
     # 'shared_server_state': shared_state,
-    'service_f': (lambda tt: lambda t: t + float(avg_serving_time[tt]))(int(value))  # Average Serving Time
+    # wards_dists[id=0 be name].rvs(**wards_args[id=0 be name])
+    'service_f': (lambda tt: lambda t: t + float(wards_dists[tt].rvs(**wards_args[tt])))(int(value))  #What the hell?
+    #'service_f': (lambda tt: lambda t: t + float(avg_serving_time[tt]))(int(value))  # Average Serving Time
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
+
+
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
 q_args[1]['AgentFactory'] = lambda f: random.choice([SuperPatient(f, patients[i][0],1) for i in range(1,len(patients))])

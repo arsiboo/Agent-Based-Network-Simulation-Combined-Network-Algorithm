@@ -10,11 +10,11 @@ def normalize_data(data):
 
 
 def perturbation(percol):
-    widness = 0
+    wideness = 0
     for k, v in percol.items():
         if v >= 0.1:
-            widness += 1
-    return str(widness) + " wards out of " + str(len(percol)) + " are in a vulnerable condition"
+            wideness += 1
+    return str(wideness) + " wards out of " + str(len(percol)) + " are in a vulnerable condition"
 
 
 def percolation_divergance(): #Measuring the significance of the network resilience through the divergance of the percolation

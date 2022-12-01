@@ -9,8 +9,8 @@ import pandas as pd
 import xlrd
 from networkx.algorithms.flow import preflow_push, build_residual_network, edmonds_karp
 
-file = xlrd.open_workbook("mad_house.xlsx")
-data = xlrd.open_workbook("data.xlsx")
+file = xlrd.open_workbook("akademiska.xlsx")
+data = xlrd.open_workbook("outcome.xlsx")
 
 hospital = file.sheet_by_name("Links")
 wards = file.sheet_by_name("Nodes")
@@ -78,23 +78,32 @@ mydf = pd.DataFrame.from_dict(res_arr)
 mydf.fillna(method='ffill', inplace=True)
 mydf.fillna(0, inplace=True)
 
-print(mydf)
 
 for index, row in mydf.iterrows():  # the time
     for u, v, net in G_flow.edges(data=True):
         label_name = u + '_' + v
-        net['residual_capacity'] = row[label_name]
+        if label_name in row:
+            net['residual_capacity'] = row[label_name]
+        else:
+            net['residual_capacity'] = 0
         # net['residual_capacity'] = res_cap
-    print("calculating residual graphs using Preflow push algorithm:")
-    pp = preflow_push(G_flow, "ward_1", "ward_7",
+    #print("calculating residual graphs using Preflow push algorithm:")
+    pp = preflow_push(G_flow, "Source", "Sink",
                       capacity="residual_capacity")  # Complexity O(sqr(V)sqrt(E)) //Best since Orlin is unavailable.
-    print(pp.edges.data())
-    print(nx.to_numpy_matrix(pp, weight="flow"))
+
+    for node1, node2, data in pp.edges(data=True):
+        if 'flow' in pp[node1][node2]:
+            if data['flow'] != 0:
+                print(data['flow'])
+                input("found!")
+
+#    print(pp.edges.data())
+#    print(nx.to_numpy_matrix(pp, weight="flow"))
     const = nx.constraint(G_flow, weight="residual_capacity")  # The higher the score on the constraint measure
     # "const", the more structural opportunities are constrained and, as a result, the lower the network benefits.
-    print(const)
-    print(dict(reversed(sorted(const.items(), key=lambda it: it[1]))))
-    print("-----------------------------------------")
+    #print(const)
+    #print(dict(reversed(sorted(const.items(), key=lambda it: it[1]))))
+    #print("-----------------------------------------")
 
 
 

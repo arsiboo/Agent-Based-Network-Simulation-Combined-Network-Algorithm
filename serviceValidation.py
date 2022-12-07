@@ -66,17 +66,11 @@ for _key,_val in extra_service_dict.items():
 for (k,v), (k2,v2) , (k3,v3) in zip(avg_real_service_dict.items(),avg_normal_service_dict.items(),avg_extra_service_dict.items()):
     print(k)
     print("average from real service time:")
-    print(avg_real_service_dict[k])
+    print("{:.8f}".format(avg_real_service_dict[k]))
     if k2 in avg_normal_service_dict.keys():
         print("average from normal service time:")
-        print(avg_normal_service_dict[k2])
+        print("{:.8f}".format(avg_normal_service_dict[k2]))
     if k3 in avg_extra_service_dict.keys():
         print("average from extra service time:")
-        print(avg_extra_service_dict[k3])
+        print("{:.8f}".format(avg_extra_service_dict[k3]))
     print("-----------------------------------------------------")
-
-
-
-
-
-

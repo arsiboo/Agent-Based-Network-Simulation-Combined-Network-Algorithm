@@ -4,88 +4,112 @@ from typing import List, Any
 import networkx as nx
 import numpy as np
 import xlrd
+import xlsxwriter
+import pandas as pd
+
 
 def normalize_data(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
-def perturbation(percol):
-    wideness = 0
-    for k, v in percol.items():
-        if v >= 0.1:
-            wideness += 1
-    return str(wideness) + " wards out of " + str(len(percol)) + " are in a vulnerable condition"
+network_type = ["Normal","Extra"]
+
+percol_perturb= xlsxwriter.Workbook("percol_perturb.xlsx")
+perturb_sheet= percol_perturb.add_worksheet("perturb")
 
 
-def percolation_divergance(): #Measuring the significance of the network resilience through the divergance of the percolation
-    return 0
-
-def perturbation_divergance(): #Measuring the significant of the vulnerability through the divergance of the perturbation
-    return 0
-
-
-file = xlrd.open_workbook("mad_house.xlsx")
-data = xlrd.open_workbook("outcome.xlsx")
-
-hospital = file.sheet_by_name("Links")
-wards = file.sheet_by_name("Nodes")
-output1 = data.sheet_by_name("queue_info")
+normal_dict=[]
+extra_dict=[]
 
 G_flow = nx.DiGraph()
 
-node_max_capacity = []
-edge_current_patients = []
-edge_transition = []
-upcoming_node = []
-node_overflow_state = []
-edge_label_output: List[Any] = []
+for net in network_type:
+    file = xlrd.open_workbook("akademiska.xlsx")
+    data = xlrd.open_workbook("outcome_"+net+".xlsx")
 
-# Importing capacities, patient flow and edge_label according to the time
-for row in range(output1.nrows):
-    if row > 0:
-        _data = output1.row_slice(row)
-        edge_label_output.append(_data[6].value)
-        upcoming_node.append(_data[8].value)
-        edge_transition.append(_data[9].value)
-        node_max_capacity.append(_data[10].value)
-        node_overflow_state.append(_data[11].value)
+    hospital = file.sheet_by_name(net+"Links")
+    wards = file.sheet_by_name(net+"Nodes")
+    output = data.sheet_by_name("queue_info")
 
-overflow_states = abs((normalize_data(node_overflow_state) - 1) * -1)
 
-nodes_mapping_list = []
-capacity_mapping_list = []
 
-# Importing edges and their labels and initializing capacity.
-for row in range(hospital.nrows):
-    if row > 0:
-        _data = hospital.row_slice(row)
-        _Node1 = _data[0].value
-        _Node2 = _data[1].value
-        edge_label_input = _data[2].value
-        G_flow.add_edges_from(
-            [
-                (_Node1, _Node2, {"label_input": edge_label_input, "per_capacity": 0})
-            ]
-        )
+    node_max_capacity = []
+    edge_current_patients = []
+    edge_transition = []
+    upcoming_node = []
+    node_overflow_state = []
+    edge_label_output: List[Any] = []
 
-nx.set_node_attributes(G_flow, 0.1, name='overflow_state')
 
-for label, capacity, transition in zip(edge_label_output, node_max_capacity, edge_transition):
-    for u, v, net_edge in G_flow.edges(data=True):
-        if net_edge['label_input'] == label:
-            net_edge['per_capacity'] = capacity / transition
 
-for state, node in zip(overflow_states, upcoming_node):
-    for n, net_node in G_flow.nodes(data=True):
-        if n == node:
-            nx.set_node_attributes(G_flow, {n: state}, name='overflow_state')  # Not Overflowed or unaffected
-            print("Calculating percolation:")
-            percolation = nx.percolation_centrality(G_flow, attribute='overflow_state',
-                                                    weight='per_capacity')
-            print(dict(reversed(sorted(percolation.items(), key=lambda it: it[1]))))
-            # Specifically, xt i=0 indicates a non-percolated state at time t,
-            # xt i=1 indicates a fully percolated state at time t,
-            # while a partially percolated state corresponds to 0vxt iv1.
-            # The higher the value, the higher is the percolation of node.
-            print("Calculating perturbation:")
-            print(perturbation(percolation))
+    # Importing capacities, patient flow and edge_label according to the time
+    for row in range(output.nrows):
+        if row > 0:
+            _data = output.row_slice(row)
+            edge_label_output.append(_data[6].value)
+            upcoming_node.append(_data[8].value)
+            edge_transition.append(_data[9].value)
+            node_max_capacity.append(_data[10].value)
+            node_overflow_state.append(_data[11].value)
+
+    overflow_states = abs((normalize_data(node_overflow_state) - 1) * -1)
+
+    nodes_mapping_list = []
+    capacity_mapping_list = []
+
+    # Importing edges and their labels and initializing capacity.
+    for row in range(hospital.nrows):
+        if row > 0:
+            _data = hospital.row_slice(row)
+            _Node1 = _data[0].value
+            _Node2 = _data[1].value
+            edge_label_input = _data[2].value
+            G_flow.add_edges_from(
+                [
+                    (_Node1, _Node2, {"label_input": edge_label_input, "per_capacity": 0})
+                ]
+            )
+
+    nx.set_node_attributes(G_flow, 0.1, name='overflow_state')
+
+    for label, capacity, transition in zip(edge_label_output, node_max_capacity, edge_transition):
+        for u, v, net_edge in G_flow.edges(data=True):
+            if net_edge['label_input'] == label:
+                net_edge['per_capacity'] = capacity / transition
+
+    counting=0
+    countings=0
+    for state, node in zip(overflow_states, upcoming_node):
+        for n, net_node in G_flow.nodes(data=True):
+            if n == node:
+                nx.set_node_attributes(G_flow, {n: state}, name='overflow_state')  # Not Overflowed or unaffected
+                percolation = nx.percolation_centrality(G_flow, attribute='overflow_state',
+                                                        weight='per_capacity')
+                percol_dict=dict(reversed(sorted(percolation.items(), key=lambda it: it[1])))
+                if net=="Normal":
+                    normal_dict.append(percol_dict)
+                elif net=="Extra":
+                    extra_dict.append(percol_dict)
+                # Specifically, xt i=0 (not infected) indicates a non-percolated state at time t,
+                # xt i=1 (dead I guess) indicates a fully percolated state at time t.
+                # The higher the value, the higher is the percolation of node.
+                # The higher the percolation level of a source node is, the more important are the paths that originate from that node
+
+
+ndict=pd.DataFrame(normal_dict)
+edict=pd.DataFrame(extra_dict)
+
+perturbation_dict = {}
+
+for nodes in G_flow.nodes(data=True):
+    if nodes[0] != "Extra Node":
+        perturbation_dict[nodes[0]]=ndict[nodes[0]].mean() - edict[nodes[0]].mean()
+
+
+counting = 0
+for key,val in perturbation_dict.items():
+    perturb_sheet.write(counting, 0, str(key))
+    perturb_sheet.write(counting, 1, str(val))
+    counting += 1
+
+percol_perturb.close()

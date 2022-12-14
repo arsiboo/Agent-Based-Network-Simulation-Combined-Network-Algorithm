@@ -12,11 +12,16 @@ from queueing_tool.queues.choice import _choice, _argmin
 import os
 import pandas as pd
 import scipy.stats
+from scipy.stats import truncnorm
 import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-# print(wards_dists) #: wards_lists[ward_name].rvs(wards_args[ward_name])
+network_type="Extra"
+
+
+# wards_lists[ward_name].rvs(wards_args[ward_name])
+# print(wards_dists)
 # b = wards_dists["Hjärtavdelning 50 F"].rvs(**wards_args["Hjärtavdelning 50 F"])
 
 
@@ -60,6 +65,22 @@ class SuperPatient(GreedyAgent):
                                 if out in new_outgoing_edges:
                                     new_outgoing_edges.remove(out)
 
+            groups=["A infection", "B infection", "I circulatory" , "J respiratory"]
+
+            if any(x in self.patientTag for x in groups):
+                current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
+                if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
+                                                                                                       '') == "EMERGENCY DEPARTMENT":
+                    if out_edge_type == 200:
+                        if not network.edge2queue[out].at_capacity():
+                            new_outgoing_edges.clear()
+                            new_outgoing_edges.append(out)
+                            break
+                    else:
+                        continue
+                else:
+                    continue
+
             if "prior" in self.patientTag:
                 current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
                 if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"', '') == "EMERGENCY DEPARTMENT":
@@ -100,6 +121,8 @@ class SuperPatient(GreedyAgent):
                         continue
                 else:
                     continue
+
+
 
         if len(new_outgoing_edges) == 0:
             new_outgoing_edges = copy.deepcopy(target_outgoing_edges)
@@ -144,6 +167,15 @@ class SharedQueueServer(qt.QueueServer):
             super().next_event()
 
 
+
+def rvs(ward_dist,min_val,max_val,**kwargs):
+    while True:
+        val = ward_dist.rvs(**kwargs)
+        if val >= min_val and val <= max_val:
+            val="{0:.5g}".format(val)
+            return val
+
+
 # arrival rate only for the first
 def arr(t):
     return rate_per_hour[math.floor(round(t, 2)) % 24]
@@ -169,12 +201,12 @@ for filename in os.listdir(directory):
         dataset = dataset[['los_ward']]
         # dataset.info()
 
-        # sns.set_style('white')
-        # sns.set_context("paper", font_scale=2)
-        # sns.displot(data=dataset, x="los_ward", kind="hist", bins=100, aspect=1.5)
-        # serving_time = dataset["los_ward"].values
-        # plt.title(ward_name + " from data ")
-        # plt.show()
+        #sns.set_style('white')
+        #sns.set_context("paper", font_scale=2)
+        #sns.displot(data=dataset, x="los_ward", kind="hist", bins=100, aspect=1.5)
+        #serving_time = dataset["los_ward"].values
+        #plt.title(ward_name + " from data ")
+        #plt.show()
 
         wards_dists[ward_name] = getattr(scipy.stats, dist_name)
         wards_args[ward_name] = dist_args
@@ -182,20 +214,22 @@ for filename in os.listdir(directory):
         vals_df = pd.DataFrame(vals, columns=[dist_name])
         vals_df2 = vals_df[vals_df[dist_name] < float(dataset.max())]
 
-        # sns.set_style('white')
-        # sns.set_context("paper", font_scale=2)
-        # sns.displot(data=vals_df2, x=dist_name, kind="hist", bins=100, aspect=1.5)
-        # plt.title(ward_name + " from distribution ")
-        # plt.show()
+        #sns.set_style('white')
+        #sns.set_context("paper", font_scale=2)
+        #sns.displot(data=vals_df2, x=dist_name, kind="hist", bins=100, aspect=1.5)
+        #plt.title(ward_name + " from distribution ")
+        #plt.show()
 
         pass
 
+
 file = xlrd.open_workbook("akademiska.xlsx")  # access to the file
-wards_relations = file.sheet_by_name("ExtraLinks")  # access to relationships of wards
-wards = file.sheet_by_name("ExtraNodes")  # access to nodes attributes
+wards_relations = file.sheet_by_name(network_type+"Links")  # access to relationships of wards
+wards = file.sheet_by_name(network_type+"Nodes")  # access to nodes attributes
 traffic_rates = file.sheet_by_name("Rate")
 normal_patients_type_path = file.sheet_by_name("Agents1")
 acute_patients_type_path = file.sheet_by_name("Agents2")
+real_data = file.sheet_by_name("serving t (length of stay)")
 
 # list of information for each node
 nodes_mapping_list = []
@@ -204,6 +238,8 @@ avg_serving_time = []
 buffer_per_ward = []
 wards_map_index = {}
 wards_map_ward = {}
+real_service_dict = {}
+
 
 # list of information for each edge
 edge_types = []
@@ -264,6 +300,21 @@ for row in range(traffic_rates.nrows):
         _data = traffic_rates.row_slice(row)
         rate_per_hour.append(_data[1].value)
 
+
+
+for row in range(real_data.nrows):
+    if row > 0:
+        _data = real_data.row_slice(row)
+        if _data[2].value in wards_map_index.keys():
+            val=wards_map_index[_data[2].value] # convert the node to label
+            if val not in real_service_dict:
+                real_service_dict[val] = [_data[3].value]
+            else:
+                real_service_dict[val].append(_data[3].value)
+
+
+
+
 # remove self-loops:
 DG_labeling.remove_edges_from(nx.selfloop_edges(DG_labeling))
 DG_probability.remove_edges_from(nx.selfloop_edges(DG_probability))
@@ -321,7 +372,7 @@ q_args = {label: {
     'collect_data': True,
     'qbuffer': int(buffer_per_ward[int(value)]),
     # 'shared_server_state': shared_state,
-    'service_f': (lambda tt: lambda t: t + float(wards_dists[tt].rvs(**wards_args[tt])))(int(value))
+    'service_f': (lambda tt: lambda t: t + float(rvs(wards_dists[tt],np.min(real_service_dict[tt]),np.max(real_service_dict[tt]),**wards_args[tt])))(int(value))
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
@@ -341,10 +392,10 @@ net.start_collecting_data()
 net.set_transitions(edge_transition_list_dict)  # sets transition dictionary for routing probability
 net.transitions(False)
 net.initialize(edge_type=1)
-net.simulate(t=8760)  # t 365*24=8760
+net.simulate(t=8760)  # t 365*24=8760 (1 year)
 
 row = 0
-workbook = xlsxwriter.Workbook('outcome_extra_node.xlsx')
+workbook = xlsxwriter.Workbook("outcome_"+network_type+".xlsx")
 queue_sheet = workbook.add_worksheet('queue_info')
 agent_sheet = workbook.add_worksheet('agent_info')
 
@@ -352,7 +403,7 @@ queue_sheet.write(row, 0, 'The arrival time of an agent')
 queue_sheet.write(row, 1, 'The service start time of an agent')
 queue_sheet.write(row, 2, 'The departure time of an agent')
 queue_sheet.write(row, 3, 'The length of the queue upon the agents arrival')
-queue_sheet.write(row, 4, 'The total number of Agents in the QueueServer')
+queue_sheet.write(row, 4, 'The total number of agents in the ward')
 queue_sheet.write(row, 5, 'The QueueServer edge index')
 queue_sheet.write(row, 6, 'Edge label')
 queue_sheet.write(row, 7, 'source')
@@ -363,10 +414,8 @@ queue_sheet.write(row, 11, 'Overflow?')
 queue_sheet.write(row, 12, 'Occupancy Percentage')
 queue_sheet.write(row, 13, 'Average service time')
 queue_sheet.write(row, 14, 'AgentType')
+queue_sheet.write(row, 15, 'number of occupied beds')
 
-agent_sheet.write(row, 0, 'The arrival time of an agent')
-agent_sheet.write(row, 1, 'The service start time of an agent')
-agent_sheet.write(row, 2, 'Agent Type')
 
 row += 1
 
@@ -379,8 +428,16 @@ for source in DG_labeling.nodes():
                 for item1, item2 in zip(queue_data, agent_data):
                     #      if wards_map_ward[source] != "Source" and wards_map_ward[source] != "Sink" and wards_map_ward[
                     #          target] != "Source" and wards_map_ward[target] != "Sink":
-                    queue_sheet.write_row(row, 0,
-                                          item1)  # Data such as number of agents in server and agents in queue
+                    queue_sheet.write(row, 0, item1[0])  # Data such as number of agents in server and agents in queue
+                    queue_sheet.write(row, 1, item1[1])
+                    if (item1[2] - item1[1]) >= 0:
+                        queue_sheet.write(row, 2, item1[2])
+                    else:
+                        queue_sheet.write(row, 2, "NaN")
+                    queue_sheet.write(row, 3, item1[3])
+                    queue_sheet.write(row, 4, item1[4])
+                    queue_sheet.write(row, 5, item1[5])
+
                     queue_sheet.write(row, 6, DG_labeling[source][target]['weight'])  # Edge label
                     queue_sheet.write(row, 7, wards_map_ward[source])  # Source
                     queue_sheet.write(row, 8, wards_map_ward[target])  # Target
@@ -395,8 +452,11 @@ for source in DG_labeling.nodes():
                     else:
                         perc = float("inf")
                     queue_sheet.write(row, 12, perc if not math.isinf(perc) else "inf")  # Occupancy Percentage
-                    queue_sheet.write(row, 13, item1[2] - item1[1])
-                    queue_sheet.write(row, 14, item2[2])
-                    agent_sheet.write_row(row, 0, item2)
+                    if (item1[2] - item1[1]) >= 0:
+                        queue_sheet.write(row, 13, item1[2] - item1[1]) # service time
+                    else:
+                        queue_sheet.write(row, 13, "NaN")
+                    queue_sheet.write(row, 14, item2[2]) # agent type
+                    queue_sheet.write(row, 15, item1[4]-item1[3]) # number of occupied beds.
                     row += 1
 workbook.close()

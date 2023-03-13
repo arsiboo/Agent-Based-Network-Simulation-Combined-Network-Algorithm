@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 
 network_type = "Extra"
 
-
 # wards_lists[ward_name].rvs(wards_args[ward_name])
 # print(wards_dists)
 # b = wards_dists["Hjärtavdelning 50 F"].rvs(**wards_args["Hjärtavdelning 50 F"])
@@ -50,6 +49,10 @@ class SuperPatient(GreedyAgent):
         # Returns the edge index of the outgoing links according to where it stands.
         target_outgoing_edges = network.out_edges[current_edge_target]
 
+        #scenario1 = ["A infection", "B infection", "I circulatory", "J respiratory"]
+        #scenario2 = ["L head", "M musc and conn", "E endocrynol", "F psych"]
+        scenario = ["J respiratory", "N urology"] # akademiska scenario
+
         new_outgoing_edges = copy.deepcopy(target_outgoing_edges)
         for out in target_outgoing_edges:
             out_edge_source = network.edge2queue[out].edge[0]
@@ -61,30 +64,27 @@ class SuperPatient(GreedyAgent):
                 if self.pathMat[i][0] == self.patientTag:
                     for j in range(0, len(self.pathMat)):
                         if self.pathMat[0][j] == str(out_node_key).replace('[', '').replace(']', '').replace('\'',
-                                                                                                             '').replace(
-                            '\"', ''):
+                                                                                                             '').replace('\"', ''):
                             if self.pathMat[i][j] == 0:
                                 if out in new_outgoing_edges:
                                     new_outgoing_edges.remove(out)
 
-            # scenario1 = ["A infection", "B infection", "I circulatory", "J respiratory"]
-            # scenario2 = ["L head", "M musc and conn", "E endocrynol", "F psych"]
-            akademiskaScenario = ["J respiratory", "N urology"]
-            null_scenario=[]
 
-            if any(x in self.patientTag for x in null_scenario):
+            if any(x in self.patientTag for x in scenario) and ("over70" in self.patientTag):
+                current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
+                if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
+                                                                                                       '') == "EMERGENCY DEPARTMENT":
+                    if out_edge_type == 200:  # if it is the extra ward (check the index from the data file)
+                        new_outgoing_edges.clear()
+                        new_outgoing_edges.append(out)
+                        break
+            else:
                 current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
                 if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
                                                                                                        '') == "EMERGENCY DEPARTMENT":
                     if out_edge_type == 200:
-                        if not network.edge2queue[out].at_capacity():
-                            new_outgoing_edges.clear()
-                            new_outgoing_edges.append(out)
-                            break
-                    else:
-                        continue
-                else:
-                    continue
+                        new_outgoing_edges.remove(out)
+
 
             if "prior" in self.patientTag:
                 current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
@@ -107,9 +107,6 @@ class SuperPatient(GreedyAgent):
                             new_outgoing_edges.clear()
                             new_outgoing_edges.append(out)
                             break
-                    else:
-                        continue
-
                 elif str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
                                                                                                          '') == "Akutvårdsavdelning 30 C":
                     if out_edge_type == 73:
@@ -124,10 +121,7 @@ class SuperPatient(GreedyAgent):
                                 new_outgoing_edges.clear()
                                 new_outgoing_edges.append(out)
                                 break
-                    else:
-                        continue
-                else:
-                    continue
+
 
         if len(new_outgoing_edges) == 0:
             new_outgoing_edges = copy.deepcopy(target_outgoing_edges)
@@ -381,13 +375,27 @@ q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for valu
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
 q_classes[1] = qt.QueueServer  # The first server has unlimited queue and is type of QueueServer
 
-# shared_state = [0]
+#shared_state = [0]
+
+#q_args = {
+#    'emergency': {
+#        'capacity': 20,     # maximum number of patients that can be treated at a time
+#        'num_servers': 10,  # number of medical staff available to treat patients
+#        'qbuffer': 10,      # maximum number of patients that can wait in line for treatment
+#        'num_agents': 300,  # expected number of patients per day
+#        'service_f': service_time,  # a function that returns service time for a given patient
+#        'collect_data': True  # whether to collect data during simulation
+#    }
+#}
+
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
-    'num_servers': int(beds_per_ward[int(value)]),  # number of beds
     'collect_data': True,
+    'capacity': int(beds_per_ward[int(value)]),
+    'num_servers': int(beds_per_ward[int(value)]),
     'qbuffer': int(buffer_per_ward[int(value)]),
-    # 'shared_server_state': shared_state,
+    #'num_agents': int(beds_per_ward[int(value)]-1),
+    #'shared_server_state': shared_state,
     'service_f': (lambda tt: lambda t: t + float(
         rvs(wards_dists[tt], np.min(real_service_dict[tt]), np.max(real_service_dict[tt]), **wards_args[tt])))(
         int(value))
@@ -396,7 +404,7 @@ q_args = {label: {
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
 
 # AGE MATTERS NOT
-#q_args[1]['AgentFactory'] = lambda f: random.choices(
+# q_args[1]['AgentFactory'] = lambda f: random.choices(
 #    [(SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index), 0.5) for i in
 #     range(1, len(acute_patients))] + [(SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index), 0.5)
 #                                       for i in range(1, len(normal_patients))], k=1, weights=[w for x, w in [
@@ -406,21 +414,23 @@ q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link whic
 #                                          for i in range(1, len(normal_patients))]])[0][0]
 
 
-# AGE MATTERS
+
 q_args[1]['AgentFactory'] = lambda f: random.choices(
     [(SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index), 0.28) for i in
-     range(1, len(acute_patients))] + [(SuperPatient(f, acute_patients_70[i][0], acute_patients_70, wards_map_index), 0.22) for i in
-                           range(1, len(acute_patients_70))] + [(SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index), 0.28)
-                                          for i in range(1, len(normal_patients))] + [(SuperPatient(f, normal_patients_70[i][0], normal_patients_70, wards_map_index), 0.22)
-                                          for i in range(1, len(normal_patients_70))], k=1, weights=[w for x, w in [
+     range(1, len(acute_patients))] + [
+        (SuperPatient(f, acute_patients_70[i][0], acute_patients_70, wards_map_index), 0.22) for i in
+        range(1, len(acute_patients_70))] + [
+        (SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index), 0.28)
+        for i in range(1, len(normal_patients))] + [
+        (SuperPatient(f, normal_patients_70[i][0], normal_patients_70, wards_map_index), 0.22)
+        for i in range(1, len(normal_patients_70))], k=1, weights=[w for x, w in [
         (SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index), 0.28) for i in
-        range(1, len(acute_patients))] + [(SuperPatient(f, acute_patients_70[i][0], acute_patients_70, wards_map_index), 0.22) for i in
-                           range(1, len(acute_patients_70))] + [(SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index), 0.28)
-                                          for i in range(1, len(normal_patients))] + [(SuperPatient(f, normal_patients_70[i][0], normal_patients_70, wards_map_index), 0.22)
-                                          for i in range(1, len(normal_patients_70))]])[0][0]
+        range(1, len(acute_patients))] + [(SuperPatient(f, acute_patients_70[i][0], acute_patients_70, wards_map_index),
+        0.22) for i in range(1, len(acute_patients_70))] + [(SuperPatient(f, normal_patients[i][0],normal_patients,wards_map_index), 0.28)
+        for i in range(1, len(normal_patients))] + [(SuperPatient(f, normal_patients_70[i][0],normal_patients_70,wards_map_index), 0.22)
+        for i in range(1,len(normal_patients_70))]])[0][0]
 
-
-#q_args[1]['AgentFactory'] = lambda f: random.choice(
+# q_args[1]['AgentFactory'] = lambda f: random.choice(
 #    [SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index) for i in range(1, len(acute_patients))] + [
 #        SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index) for i in
 #        range(1, len(normal_patients))])
@@ -428,15 +438,18 @@ q_args[1]['AgentFactory'] = lambda f: random.choices(
 print(q_classes)
 print(q_args)
 
-net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000)
+
+net = qt.QueueNetwork(g=dg, q_classes=q_classes, q_args=q_args, max_agents=50000,adjust_graph=False)
+
 net.start_collecting_data()
 net.set_transitions(edge_transition_list_dict)  # sets transition dictionary for routing probability
 net.transitions(False)
 net.initialize(edge_type=1)
+#net.initialize()
 net.simulate(t=8760)  # t 365*24=8760 (1 year)
 
 row = 0
-workbook = xlsxwriter.Workbook("Experiment_February/OUTCOME_" + network_type + ".xlsx")
+workbook = xlsxwriter.Workbook("Experiment_February/Simulation/OUTCOME_" + network_type + ".xlsx")
 queue_sheet = workbook.add_worksheet('queue_info')
 agent_sheet = workbook.add_worksheet('agent_info')
 

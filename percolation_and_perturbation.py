@@ -14,8 +14,8 @@ def normalize_data(data):
 
 network_type = ["Normal","Extra"]
 
-percol_perturb= xlsxwriter.Workbook("percol_perturb.xlsx")
-perturb_sheet= percol_perturb.add_worksheet("perturb")
+percol_perturb = xlsxwriter.Workbook("Experiment_February/Percolation and Perturbation/percol_perturb.xlsx")
+perturb_sheet = percol_perturb.add_worksheet("perturb")
 
 
 normal_dict=[]
@@ -25,7 +25,7 @@ G_flow = nx.DiGraph()
 
 for net in network_type:
     file = xlrd.open_workbook("akademiska.xlsx")
-    data = xlrd.open_workbook("outcome_"+net+".xlsx")
+    data = xlrd.open_workbook("Experiment_February/Simulation/OUTCOME_"+net+".xlsx")
 
     hospital = file.sheet_by_name(net+"Links")
     wards = file.sheet_by_name(net+"Nodes")
@@ -77,8 +77,8 @@ for net in network_type:
             if net_edge['label_input'] == label:
                 net_edge['per_capacity'] = capacity / transition
 
-    counting=0
-    countings=0
+    counting = 0
+    countings = 0
     for state, node in zip(overflow_states, upcoming_node):
         for n, net_node in G_flow.nodes(data=True):
             if n == node:

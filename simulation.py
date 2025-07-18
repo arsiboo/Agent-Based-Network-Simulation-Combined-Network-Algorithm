@@ -60,59 +60,6 @@ class SuperPatient(GreedyAgent):
                                     new_outgoing_edges.remove(out)
 
 
-            if any(x in self.patientTag for x in scenario) and ("over70" in self.patientTag):
-                current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
-                if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
-                                                                                                       '') == "EMERGENCY DEPARTMENT":
-                    if out_edge_type == 200:  # if it is the extra ward (check the index from the data file)
-                        new_outgoing_edges.clear()
-                        new_outgoing_edges.append(out)
-                        break
-            else:
-                current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
-                if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
-                                                                                                       '') == "EMERGENCY DEPARTMENT":
-                    if out_edge_type == 200:
-                        new_outgoing_edges.remove(out)
-
-
-            if "prior" in self.patientTag:
-                current_target_key = [k for k, v in self.wards_mapping.items() if v == current_edge_target]
-                if str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
-                                                                                                       '') == "EMERGENCY DEPARTMENT":
-                    if out_edge_type == 73:
-                        if not network.edge2queue[out].at_capacity():
-                            new_outgoing_edges.clear()
-                            new_outgoing_edges.append(out)
-                            self.patientTag += "check"
-                            break
-                    elif out_edge_type == 78:
-                        if not network.edge2queue[out].at_capacity():
-                            new_outgoing_edges.clear()
-                            new_outgoing_edges.append(out)
-                            self.patientTag += "check"
-                            break
-                    elif out_edge_type == 74:
-                        if "check" not in self.patientTag:
-                            new_outgoing_edges.clear()
-                            new_outgoing_edges.append(out)
-                            break
-                elif str(current_target_key).replace('[', '').replace(']', '').replace('\'', '').replace('\"',
-                                                                                                         '') == "Akutvårdsavdelning 30 C":
-                    if out_edge_type == 73:
-                        if "check" not in self.patientTag:
-                            if not network.edge2queue[out].at_capacity():
-                                new_outgoing_edges.clear()
-                                new_outgoing_edges.append(out)
-                                break
-                    elif out_edge_type == 78:
-                        if "check" not in self.patientTag:
-                            if not network.edge2queue[out].at_capacity():
-                                new_outgoing_edges.clear()
-                                new_outgoing_edges.append(out)
-                                break
-
-
         if len(new_outgoing_edges) == 0:
             new_outgoing_edges = copy.deepcopy(target_outgoing_edges)
 

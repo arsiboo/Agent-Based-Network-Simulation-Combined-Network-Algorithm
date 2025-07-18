@@ -16,17 +16,7 @@ from scipy.stats import truncnorm
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-network_type = "Extra"
-
-# wards_lists[ward_name].rvs(wards_args[ward_name])
-# print(wards_dists)
-# b = wards_dists["Hjärtavdelning 50 F"].rvs(**wards_args["Hjärtavdelning 50 F"])
-
-
-# class InfoAgentWithType(InfoAgent):
-#    def __init__(self, agent_id=(0, 0), net_size=1, **kwargs):
-#        super().__init__(agent_id + ("InfoAgent",), net_size, **kwargs)
-
+network_type = "Hospital" # The excel file name which represent the hospital data.
 
 class SuperPatient(GreedyAgent):
     patientTag = ""

@@ -6,7 +6,6 @@ import xlrd
 from fitter import Fitter, get_common_distributions, get_distributions
 
 distribution_per_wards = {}
-# dataset2 = pd.read_csv("weight_height.csv")
 
 
 orig_dataset = pd.read_excel("akademiska.xlsx", "serving t (length of stay)")
@@ -42,25 +41,5 @@ for ward in wards_list:
         pd.DataFrame(distribution_per_wards[ward]).to_excel("fitted_distributions_" + str(ward) + ".xlsx", sheet_name='wards_dist')
     except ValueError:
         print("Ignoring Value error: len(serving_time)=" + str(len(serving_time)))
-
-
-
-# for ward in wards_list:
-#     try:
-#         dist_name = list(distribution_per_wards[ward])[0]
-#         args = distribution_per_wards[ward][dist_name]
-#
-#         dist = getattr(scipy.stats, dist_name)
-#
-#         vals = dist.rvs(**args, size=1000)
-#         vals_df = pd.DataFrame(vals, columns=[dist_name])
-#     except KeyError:
-#         print("2 - Ignoring Value error: len(serving_time)=" + str(len(serving_time)))
-
-# sns.set_style('white')
-# sns.set_context("paper", font_scale=2)
-#
-# vals_df2 = vals_df[vals_df['los_ward'] < float(dataset.max())]
-# sns.displot(data=vals_df2, x="los_ward", kind="hist", bins=100, aspect=1.5)
 
 

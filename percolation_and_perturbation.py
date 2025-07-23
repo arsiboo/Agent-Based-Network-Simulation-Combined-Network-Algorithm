@@ -14,7 +14,7 @@ def normalize_data(data):
 
 network_type = ["Normal","Extra"]
 
-percol_perturb = xlsxwriter.Workbook("Experiment_February/Percolation and Perturbation/percol_perturb.xlsx")
+percol_perturb = xlsxwriter.Workbook("Percolation and Perturbation/percol_perturb.xlsx")
 perturb_sheet = percol_perturb.add_worksheet("perturb")
 
 
@@ -24,8 +24,8 @@ extra_dict=[]
 G_flow = nx.DiGraph()
 
 for net in network_type:
-    file = xlrd.open_workbook("akademiska.xlsx")
-    data = xlrd.open_workbook("Experiment_February/Simulation/OUTCOME_"+net+".xlsx")
+    file = xlrd.open_workbook("hospital.xlsx")
+    data = xlrd.open_workbook("Simulation/OUTCOME_"+net+".xlsx")
 
     hospital = file.sheet_by_name(net+"Links")
     wards = file.sheet_by_name(net+"Nodes")
@@ -90,11 +90,6 @@ for net in network_type:
                     normal_dict.append(percol_dict)
                 elif net=="Extra":
                     extra_dict.append(percol_dict)
-                # Specifically, xt i=0 (not infected) indicates a non-percolated state at time t,
-                # xt i=1 (dead I guess) indicates a fully percolated state at time t.
-                # The higher the value, the higher is the percolation of node.
-                # The higher the percolation level of a source node is, the more important are the paths that originate from that node
-
 
 ndict=pd.DataFrame(normal_dict)
 edict=pd.DataFrame(extra_dict)

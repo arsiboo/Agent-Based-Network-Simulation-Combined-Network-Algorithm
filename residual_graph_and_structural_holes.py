@@ -1,4 +1,4 @@
-# Resodial flows and structural hole
+# Residual flow and structural hole
 # Residual_Capacity = Original_Capacity - current_flow
 # Residual_Capacity = (Total_number_of_beds/incoming_edge_transition) - current_people_in_queue
 # Sort Output before usage.

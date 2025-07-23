@@ -134,15 +134,6 @@ for filename in os.listdir(directory):
 
         dataset = orig_dataset.loc[orig_dataset['OA_unit_SV'] == ward_name]
         dataset = dataset[['los_ward']]
-        # dataset.info()
-
-        # if ward_name=="Akutvårdsavdelning 30 C":
-        #     sns.set_style('white')
-        #     sns.set_context("paper", font_scale=2)
-        #     sns.displot(data=dataset, x="los_ward", kind="hist", bins=100, aspect=1.5)
-        #     serving_time = dataset["los_ward"].values
-        #     plt.title(ward_name + " from data ")
-        #     plt.show()
 
         wards_dists[ward_name] = getattr(scipy.stats, dist_name)
         wards_args[ward_name] = dist_args
@@ -150,14 +141,8 @@ for filename in os.listdir(directory):
         vals_df = pd.DataFrame(vals, columns=[dist_name])
         vals_df2 = vals_df[vals_df[dist_name] < float(dataset.max())]
 
-        # if ward_name=="Akutvårdsavdelning 30 C":
-        #     sns.set_style('white')
-        #     sns.set_context("paper", font_scale=2)
-        #     sns.displot(data=vals_df2, x=dist_name, kind="hist", bins=100, aspect=1.5)
-        #     plt.title(ward_name + " from distribution ")
-        #     plt.show()
-
         pass
+
 
 file = xlrd.open_workbook("akademiska.xlsx")  # access to the file
 wards_relations = file.sheet_by_name(network_type + "Links")  # access to relationships of wards
@@ -306,24 +291,8 @@ dg = qt.QueueNetworkDiGraph(g)
 q_classes = {label: qt.LossQueue for key in edge_label_list_dict.keys() for value, label in
              edge_label_list_dict[key].items()}
 
-# q_classes = {label: SharedQueueServer for key in edge_label_list_dict.keys() for value, label in
-#             edge_label_list_dict[key].items()}
-
 q_classes[0] = qt.NullQueue  # Queue 0 indicates the link which terminates patients
 q_classes[1] = qt.QueueServer  # The first server has unlimited queue and is type of QueueServer
-
-#shared_state = [0]
-
-#q_args = {
-#    'emergency': {
-#        'capacity': 20,     # maximum number of patients that can be treated at a time
-#        'num_servers': 10,  # number of medical staff available to treat patients
-#        'qbuffer': 10,      # maximum number of patients that can wait in line for treatment
-#        'num_agents': 300,  # expected number of patients per day
-#        'service_f': service_time,  # a function that returns service time for a given patient
-#        'collect_data': True  # whether to collect data during simulation
-#    }
-#}
 
 # defining number of servers, arrival rate and the service time for each edge.
 q_args = {label: {
@@ -331,26 +300,12 @@ q_args = {label: {
     'capacity': int(beds_per_ward[int(value)]),
     'num_servers': int(beds_per_ward[int(value)]),
     'qbuffer': int(buffer_per_ward[int(value)]),
-    #'num_agents': int(beds_per_ward[int(value)]-1),
-    #'shared_server_state': shared_state,
     'service_f': (lambda tt: lambda t: t + float(
         rvs(wards_dists[tt], np.min(real_service_dict[tt]), np.max(real_service_dict[tt]), **wards_args[tt])))(
         int(value))
 } for key in edge_label_list_dict.keys() for value, label in edge_label_list_dict[key].items()}
 
 q_args[1]['arrival_f'] = lambda t: t + arr(t)  # Queue 1 indicates the link which generates patients
-
-# AGE MATTERS NOT
-# q_args[1]['AgentFactory'] = lambda f: random.choices(
-#    [(SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index), 0.5) for i in
-#     range(1, len(acute_patients))] + [(SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index), 0.5)
-#                                       for i in range(1, len(normal_patients))], k=1, weights=[w for x, w in [
-#        (SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index), 0.5) for i in
-#        range(1, len(acute_patients))] + [(
-#                                          SuperPatient(f, normal_patients[i][0], normal_patients, wards_map_index), 0.5)
-#                                          for i in range(1, len(normal_patients))]])[0][0]
-
-
 
 q_args[1]['AgentFactory'] = lambda f: random.choices(
     [(SuperPatient(f, acute_patients[i][0], acute_patients, wards_map_index), 0.28) for i in

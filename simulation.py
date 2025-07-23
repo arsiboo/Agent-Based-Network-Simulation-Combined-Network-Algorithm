@@ -16,7 +16,7 @@ from scipy.stats import truncnorm
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-network_type = "Norma" # Or the extended network
+network_type = "Normal" # Or the extended network
 
 class SuperPatient(GreedyAgent):
     patientTag = ""
@@ -119,7 +119,7 @@ ignored_files = [directory + "/.DS_Store"]
 wards_dists = {}
 wards_args = {}
 
-orig_dataset = pd.read_excel("akademiska.xlsx", "serving t (length of stay)")
+orig_dataset = pd.read_excel("hospital.xlsx", "serving t (length of stay)")
 orig_dataset = orig_dataset.dropna(subset=['los_ward'])
 
 for filename in os.listdir(directory):
@@ -142,7 +142,7 @@ for filename in os.listdir(directory):
         pass
 
 
-file = xlrd.open_workbook("akademiska.xlsx")  # access to the file
+file = xlrd.open_workbook("hospital.xlsx")  # access to the file
 wards_relations = file.sheet_by_name(network_type + "Links")  # access to relationships of wards
 wards = file.sheet_by_name(network_type + "Nodes")  # access to nodes attributes
 traffic_rates = file.sheet_by_name("Rate")

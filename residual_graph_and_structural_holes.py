@@ -14,16 +14,16 @@ from networkx.algorithms.flow import preflow_push, build_residual_network, edmon
 import seaborn as sns
 
 
-network_type="Normal"
+network_type="Normal" # Or changed network
 
-file = xlrd.open_workbook("akademiska.xlsx")
-data = xlrd.open_workbook("Experiment_February/Simulation/OUTCOME_"+network_type+".xlsx")
+file = xlrd.open_workbook("Hospital.xlsx")
+data = xlrd.open_workbook("Simulation/OUTCOME_"+network_type+".xlsx")
 
 hospital = file.sheet_by_name(network_type+"Links")
 wards = file.sheet_by_name(network_type+"Nodes")
 output = data.sheet_by_name("queue_info")
 
-residual_structural= xlsxwriter.Workbook("Experiment_February/Flow and Structural Hole/residuals.xlsx")
+residual_structural= xlsxwriter.Workbook("Flow and Structural Hole/residuals.xlsx")
 residual_sheet= residual_structural.add_worksheet("residual")
 structural_hole_sheet= residual_structural.add_worksheet("structura_hole")
 

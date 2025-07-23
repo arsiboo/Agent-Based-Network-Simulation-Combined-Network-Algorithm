@@ -23,3 +23,7 @@ Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeb
 
 - **`serviceValidation.py`**  
   Validates whether the fitted distributions accurately reflect real-world ward behavior.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

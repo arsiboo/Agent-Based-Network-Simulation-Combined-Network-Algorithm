@@ -5,7 +5,7 @@ from collections import defaultdict
 import pandas as pd
 
 
-data_service_time = xlrd.open_workbook("akademiska.xlsx")
+data_service_time = xlrd.open_workbook("Hospital.xlsx")
 outcome_normal_service_time = xlrd.open_workbook("outcome_Normal.xlsx")
 outcome_extra_service_time = xlrd.open_workbook("outcome_Extra.xlsx")
 

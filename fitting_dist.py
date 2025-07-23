@@ -8,10 +8,10 @@ from fitter import Fitter, get_common_distributions, get_distributions
 distribution_per_wards = {}
 
 
-orig_dataset = pd.read_excel("akademiska.xlsx", "serving t (length of stay)")
+orig_dataset = pd.read_excel("Hospital.xlsx", "serving t (length of stay)")
 orig_dataset = orig_dataset.dropna(subset=['los_ward'])
 
-file = xlrd.open_workbook("akademiska.xlsx") 
+file = xlrd.open_workbook("Hospital.xlsx") 
 wards = file.sheet_by_name("Nodes")  
 
 wards_list = []

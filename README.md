@@ -13,7 +13,7 @@ Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeb
   Implements an agent-based network simulation modeling the flow of patients throughout the hospital, from ward to ward.
 
 - **`residual_graph_and_structural_hole.py`**  
-  Analyzes the simulation output to identify patient flow bottlenecks and structural weaknesses in the hospital network.
+  Iteratively analyzes the simulation output to identify patient flow bottlenecks and structural weaknesses in the hospital network.
 
 - **`percolation_perturbation.py`**  
   Compares two simulation outputs (baseline and perturbed states) to quantify performance changes in wards based on percolation dynamics.

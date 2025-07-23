@@ -39,9 +39,7 @@ class SuperPatient(GreedyAgent):
         # Returns the edge index of the outgoing links according to where it stands.
         target_outgoing_edges = network.out_edges[current_edge_target]
 
-        #scenario1 = ["A infection", "B infection", "I circulatory", "J respiratory"]
-        #scenario2 = ["L head", "M musc and conn", "E endocrynol", "F psych"]
-        scenario = ["J respiratory", "N urology"] # akademiska scenario
+        scenario = ["J respiratory", "N urology"]
 
         new_outgoing_edges = copy.deepcopy(target_outgoing_edges)
         for out in target_outgoing_edges:

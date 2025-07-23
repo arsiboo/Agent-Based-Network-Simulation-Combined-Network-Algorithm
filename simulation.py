@@ -16,7 +16,7 @@ from scipy.stats import truncnorm
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-network_type = "Hospital" # The excel file name which represent the hospital data.
+network_type = "Norma" # Or the extended network
 
 class SuperPatient(GreedyAgent):
     patientTag = ""
@@ -386,7 +386,7 @@ net.initialize(edge_type=1)
 net.simulate(t=8760)  # t 365*24=8760 (1 year)
 
 row = 0
-workbook = xlsxwriter.Workbook("Experiment_February/Simulation/OUTCOME_" + network_type + ".xlsx")
+workbook = xlsxwriter.Workbook("Simulation/OUTCOME_" + network_type + ".xlsx")
 queue_sheet = workbook.add_worksheet('queue_info')
 agent_sheet = workbook.add_worksheet('agent_info')
 

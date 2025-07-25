@@ -1,9 +1,15 @@
 # A Hybrid Approach to Model Hospitals and Evaluate Wards' Performances
 
-**Paper link:** [IEEE Xplore](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=11037449)
+**Paper link:** https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=11037449
 
 **Citation:**  
 Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeby, P., & Meijer, S. (2025). *A Hybrid Approach to Model Hospitals and Evaluate Wards’ Performances*. IEEE Access.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
@@ -23,9 +29,3 @@ Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeb
 
 - **`serviceValidation.py`**  
   Validates whether the fitted distributions accurately reflect real-world ward behavior.
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).

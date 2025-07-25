@@ -41,9 +41,3 @@ This project is licensed under the [MIT License](LICENSE).
 
 - [A Dynamic Nonlinear Flow Algorithm to Model Patient Flow](https://github.com/arsiboo/Dynamic-Nonlinear-Flow-Algorithm/blob/main/README.md)
 
----
-
-## 📬 Contact
-
-For questions or feedback, please reach out via the contact information on the paper or through the GitHub issues page.
-

@@ -1,12 +1,17 @@
 # A Hybrid Approach to Model Hospitals and Evaluate Wards' Performances
 
-This repository contains the code and materials associated with the paper:
-
-**[A Hybrid Approach to Model Hospitals and Evaluate Wards' Performances](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=11037449)**  
-Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeby, P., & Meijer, S.  
-*IEEE Access, 2025*
+This repository contains the code and materials associated with the paper. The agent based network simulation model the behaviour of the whole hospital, structural hole and flow algorithms identify the warrds with common persistent bottlenecks, and percolation and perturbation analysis evaluate the wards' performances.
 
 > **Note:** This research was conducted as part of my PhD studies at KTH Royal Institute of Technology.
+
+---
+
+## Citation
+
+If you use this algorithm in your research or publications, please cite the following work:
+
+Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeby, P., & Meijer, S. (2025). *A Hybrid Approach to Model Hospitals and Evaluate Wards' Performances.* IEEE Access 
+[Read the Paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=11037449)
 
 ---
 

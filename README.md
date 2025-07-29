@@ -8,7 +8,7 @@ This repository contains the code and materials associated with the paper. The a
 
 ## Citation
 
-If you use this algorithm in your research or publications, please cite the following work:
+If you use this approach in your research or publications, please cite the following work:
 
 Boodaghian Asl, A., Marzano, L., Raghothama, J., Darwich, A. S., Falk, N., Bodeby, P., & Meijer, S. (2025). *A Hybrid Approach to Model Hospitals and Evaluate Wards' Performances.* IEEE Access 
 [Read the Paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=11037449)
